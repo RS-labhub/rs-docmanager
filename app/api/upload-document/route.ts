@@ -5,6 +5,7 @@ import { parseDocument } from "@/lib/parsers";
 import { withAuth } from "@/lib/auth/require";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { fileTypeFromBuffer } from "file-type";
+import type { Document as DocumentRow } from "@/lib/supabase/types";
 
 export const runtime = "nodejs";
 
@@ -125,7 +126,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
     } = admin.storage.from("documents").getPublicUrl(storagePath);
 
     if (documentId) {
-      const updateData: Record<string, any> = {
+      const updateData: Partial<DocumentRow> = {
         file_url: publicUrl,
         file_size: file.size,
       };

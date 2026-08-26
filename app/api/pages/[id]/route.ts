@@ -106,7 +106,7 @@ export const PATCH = withAuth(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const update: Record<string, unknown> = {};
+    const update: Partial<Page> = {};
     if (body.title !== undefined) update.title = body.title;
     if (body.emoji !== undefined) update.emoji = body.emoji;
     if (body.cover_url !== undefined) update.cover_url = body.cover_url;

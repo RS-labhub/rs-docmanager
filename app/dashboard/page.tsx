@@ -77,7 +77,7 @@ export default function DashboardPage() {
         docQuery = docQuery.eq("org_id", user.org_id)
       }
       if (!isAdminPlus) {
-        docQuery = docQuery.eq("created_by", user.id)
+        docQuery = docQuery.eq("owner_id", user.id)
       }
       const { count: docCount, data: recentDocs } = await docQuery
         .order("created_at", { ascending: false })

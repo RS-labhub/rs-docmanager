@@ -10,17 +10,8 @@ export const runtime = "nodejs";
 
 const forgotPasswordSchema = z.object({ email: emailSchema });
 
-/**
- * POST /api/auth/forgot-password
- *
- * Sends a password-recovery email via Supabase Auth. Always responds
- * with a generic success payload so we don't leak whether an account
- * exists for the submitted address (account enumeration mitigation).
- *
- * The recovery link in the email points to `${APP_URL}/reset-password`,
- * where Supabase deposits a temporary session that allows `updateUser`
- * to set a new password.
- */
+// POST /api/auth/forgot-password — sends a recovery email via Supabase
+// Auth. Always responds generically to avoid account enumeration.
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req) ?? "unknown";
@@ -42,9 +33,7 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient();
 
-    // Only fire the email if a profile actually exists for this email.
-    // We still respond the same way either way, but this avoids
-    // hitting Supabase Auth for every random address.
+    // Only fire the email if a profile exists, to avoid needless Auth calls.
     const { data: profile } = await admin
       .from("profiles")
       .select("id, is_active, approval_status")
@@ -56,13 +45,8 @@ export async function POST(req: NextRequest) {
       profile.is_active &&
       profile.approval_status !== "rejected"
     ) {
-      // IMPORTANT: `resetPasswordForEmail` must be called via the
-      // anon-key client — Supabase Auth only sends the recovery
-      // email when invoked through the public API surface; service-
-      // role calls are silent. We point `redirectTo` at our own
-      // `/auth/callback` route, which exchanges the single-use
-      // `code` for a cookie-bound session and then forwards the
-      // user to `/reset-password`.
+      // Must use the anon-key client — service-role calls send no email.
+      // redirectTo points at /auth/callback, which forwards to /reset-password.
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
       const publicClient = createSupabaseJsClient(supabaseUrl, supabaseAnonKey, {

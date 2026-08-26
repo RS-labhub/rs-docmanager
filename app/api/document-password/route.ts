@@ -8,13 +8,14 @@ import {
   verifyDocumentPasswordSchema,
 } from "@/lib/schemas";
 import { isAtLeast } from "@/lib/permissions";
+import { issueUnlockCookie } from "@/lib/document-unlock";
 import type { UserRole } from "@/lib/supabase/types";
 import { ZodError, z } from "zod";
 import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
 
 export const runtime = "nodejs";
 
-/** Same logic as document-comments — can this user even touch this document? */
+// Same logic as document-comments — can this user even touch this document?
 async function canAccessDocument(
   supabase: Awaited<ReturnType<typeof createServerClient>>,
   documentId: string,
@@ -34,8 +35,7 @@ async function canAccessDocument(
   return { ok: isAtLeast(role, "admin"), doc };
 }
 
-/* ─── scrypt hashing (replaces bcryptjs) ─────────────────────── */
-// Format: "scrypt$<N>$<r>$<p>$<saltHex>$<hashHex>"
+// scrypt hashing. Format: "scrypt$<N>$<r>$<p>$<saltHex>$<hashHex>"
 const N = 16384;
 const r = 8;
 const p = 1;
@@ -62,7 +62,7 @@ function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(candidate, hash);
 }
 
-/* ─── SET or UPDATE password ─────────────────────────────────── */
+// SET or UPDATE password.
 export const POST = withAuth(async (authed, req: NextRequest) => {
   try {
     const raw = await req.json();
@@ -78,8 +78,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    // Only the document owner can set the password (the whole point — this
-    // protects documents even from admins).
+    // Only the document owner can set the password (the whole point — this protects documents even from admins).
     if (doc.owner_id !== authed.id) {
       return NextResponse.json(
         { error: "Only the document owner can set a password" },
@@ -89,8 +88,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
 
     const hash = hashPassword(password);
 
-    // `document_passwords` has no authenticated-role RLS policy —
-    // service role only. ACL is enforced just above.
+    // `document_passwords` has no authenticated-role RLS policy — service role only. ACL is enforced just above.
     const admin = createAdminClient();
     const { error } = await admin
       .from("document_passwords")
@@ -130,14 +128,13 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
   }
 });
 
-/* ─── VERIFY password ────────────────────────────────────────── */
+// VERIFY password.
 export const PUT = withAuth(async (authed, req: NextRequest) => {
   try {
     const raw = await req.json();
     const { documentId, password } = verifyDocumentPasswordSchema.parse(raw);
 
-    // Rate-limit brute force: 10 attempts / 15 min per (user, document) pair,
-    // plus 30 / 15 min globally per user across all docs.
+    // Rate-limit brute force: 10 attempts / 15 min per (user, document) pair, plus 30 / 15 min globally per user across all docs.
     const rl1 = await checkRateLimit(
       "doc-password-verify-doc",
       `${authed.id}:${documentId}`,
@@ -181,7 +178,11 @@ export const PUT = withAuth(async (authed, req: NextRequest) => {
 
     const valid = verifyPassword(password, data.password_hash);
 
-    // Audit failures (successes too, but failures matter more).
+    // A successful verify unlocks server-side reads for 30 minutes.
+    if (valid) {
+      await issueUnlockCookie(documentId, authed.id);
+    }
+
     if (!valid) {
       await supabase.from("audit_logs").insert({
         user_id: authed.id,
@@ -206,7 +207,7 @@ export const PUT = withAuth(async (authed, req: NextRequest) => {
   }
 });
 
-/* ─── REMOVE password ────────────────────────────────────────── */
+// REMOVE password.
 export const DELETE = withAuth(async (authed, req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url);

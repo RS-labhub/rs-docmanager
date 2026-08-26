@@ -1,35 +1,14 @@
-/* ═══════════════════════════════════════════════════════════════
-   Permit.io Integration — Fine-Grained Access Control
-   ═══════════════════════════════════════════════════════════════
-   Uses Permit.io SDK alongside our local RBAC for policy-based
-   authorization decisions. The SDK calls the Permit.io PDP (Policy
-   Decision Point) which evaluates the configured RBAC/ABAC policies.
-
-   Resources:
-     • document   — CRUD + ai_action
-     • user       — read, create, update, delete, change_role
-     • organization — read, create, update, delete
-     • ai_key     — read, create, delete
-     • audit_log  — read
-
-   Roles (synced to Permit.io dashboard):
-     • god          — full system access
-     • super_admin  — full org access + cross-org read
-     • admin        — org-level management
-     • user         — basic document access
-   ═══════════════════════════════════════════════════════════════ */
-
+// Permit.io integration for fine-grained access control, layered on top
+// of the local RBAC (lib/permissions.ts). Calls the Permit.io PDP to
+// evaluate configured RBAC/ABAC policies.
 import { Permit } from "permitio";
 import type { UserRole } from "./supabase/types";
-
-/* ─── Permit Client ─────────────────────────────────────────── */
 
 const permit = new Permit({
   pdp: process.env.PERMIT_PDP_URL || "https://cloudpdp.api.permit.io",
   token: process.env.PERMIT_SDK_TOKEN || "",
 });
 
-/* ─── Resource + Action Definitions ─────────────────────────── */
 
 export type PermitResource =
   | "document"
@@ -48,25 +27,16 @@ export type PermitAction =
   | "change_role"
   | "manage";
 
-/* ─── Core Check Function ───────────────────────────────────── */
-
-/**
- * Check if a user is permitted to perform an action on a resource
- * via the Permit.io PDP. Falls back to local RBAC if PDP is unavailable.
- */
+// Checks if a user is permitted to perform an action on a resource via
+// the Permit.io PDP. Falls back to local RBAC if the PDP is unavailable.
 export async function checkPermission(
   userId: string,
   action: PermitAction,
   resource: PermitResource,
   context?: Record<string, unknown>
 ): Promise<boolean> {
-  // Permit.io is a SECONDARY / optional fine-grained layer. The
-  // primary authorization check is done locally via hasPermission()
-  // (see lib/permissions.ts) and RLS at the database layer.
-  //
-  // If no token is configured we skip this secondary check and
-  // defer to the primary checks (`true` here just means "Permit
-  // has no opinion"). Callers MUST still perform their own RBAC.
+  // Permit.io is a secondary/optional layer; primary checks are hasPermission()
+  // (lib/permissions.ts) + RLS. No token configured means "no opinion".
   if (!process.env.PERMIT_SDK_TOKEN) {
     return true;
   }
@@ -85,10 +55,7 @@ export async function checkPermission(
   }
 }
 
-/**
- * Bulk check — check multiple permissions at once.
- * Returns a map of "action:resource" → boolean.
- */
+// Bulk check — checks multiple permissions, returns a map of "action:resource" → boolean.
 export async function checkPermissions(
   userId: string,
   checks: Array<{ action: PermitAction; resource: PermitResource }>
@@ -105,12 +72,7 @@ export async function checkPermissions(
   return results;
 }
 
-/* ─── User Sync ─────────────────────────────────────────────── */
-
-/**
- * Sync a user to Permit.io when they register or their role changes.
- * This ensures the PDP knows about the user and their role assignment.
- */
+// Syncs a user to Permit.io on register or role change so the PDP knows their role.
 export async function syncUserToPermit(
   userId: string,
   email: string,
@@ -145,9 +107,7 @@ export async function syncUserToPermit(
   }
 }
 
-/**
- * Remove a user from Permit.io when they are deleted.
- */
+// Removes a user from Permit.io when they are deleted.
 export async function removeUserFromPermit(userId: string): Promise<void> {
   try {
     if (!process.env.PERMIT_SDK_TOKEN) return;
@@ -158,11 +118,7 @@ export async function removeUserFromPermit(userId: string): Promise<void> {
   }
 }
 
-/* ─── Role Management ───────────────────────────────────────── */
-
-/**
- * Update a user's role in Permit.io when it changes.
- */
+// Updates a user's role in Permit.io when it changes.
 export async function updateUserRoleInPermit(
   userId: string,
   oldRole: UserRole,
@@ -198,8 +154,6 @@ export async function updateUserRoleInPermit(
   }
 }
 
-/* ─── Resource-Level Checks (Convenience Wrappers) ──────────── */
-
 export async function canReadDocument(userId: string): Promise<boolean> {
   return checkPermission(userId, "read", "document");
 }
@@ -231,7 +185,5 @@ export async function canManageOrganization(userId: string): Promise<boolean> {
 export async function canViewAuditLogs(userId: string): Promise<boolean> {
   return checkPermission(userId, "read", "audit_log");
 }
-
-/* ─── Export the raw client for advanced usage ──────────────── */
 
 export { permit };

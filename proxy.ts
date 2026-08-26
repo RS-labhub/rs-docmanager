@@ -1,21 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════
-   Next.js 16 proxy (replaces the deprecated `middleware`)
-   ═══════════════════════════════════════════════════════════════
-   Runs on Node.js runtime. Responsibilities:
-     1. Refresh the Supabase auth session cookie on every request.
-     2. Redirect unauthenticated users away from protected routes.
-     3. Redirect authenticated users away from /login and /register.
-     4. Apply baseline security headers.
-
-   NOTE: this is a FIRST line of defense only. Every API route and
-   Server Action MUST also call requireUser() / requireRole() —
-   the proxy alone cannot enforce per-resource authorization.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Next.js proxy (replaces the deprecated `middleware`). Refreshes the auth
+// session cookie, redirects based on auth state, and applies security headers.
+// This is a first line of defense only — routes must still call requireUser()/requireRole().
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-
-/* ─── Route classification ───────────────────────────────────── */
 
 const PUBLIC_PAGES = new Set([
   "/",
@@ -29,7 +16,7 @@ const PUBLIC_PAGES = new Set([
 
 const AUTH_PAGES = new Set(["/login", "/register", "/forgot-password"]);
 
-/** API paths that are legitimately public (auth entrypoints, docs). */
+// API paths that are legitimately public (auth entrypoints, docs).
 const PUBLIC_API_PREFIXES = [
   "/api/auth/login",
   "/api/auth/register",
@@ -44,7 +31,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith("/_next/")) return true;
   if (pathname.startsWith("/favicon")) return true;
   if (pathname.startsWith("/public/")) return true;
-  // Shared "public link" page view + its JSON endpoint.
+  // Shared public-link page view + its JSON endpoint.
   if (pathname.startsWith("/p/")) return true;
   // /api/pages/<uuid>/public — anonymous read of a public-link page.
   if (/^\/api\/pages\/[^/]+\/public$/.test(pathname)) return true;
@@ -53,8 +40,6 @@ function isPublicPath(pathname: string): boolean {
   }
   return false;
 }
-
-/* ─── Security headers ───────────────────────────────────────── */
 
 function applySecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set("X-Content-Type-Options", "nosniff");
@@ -72,21 +57,17 @@ function applySecurityHeaders(res: NextResponse): NextResponse {
   return res;
 }
 
-/* ─── Proxy entry ────────────────────────────────────────────── */
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Start with a pass-through response. Supabase will rewrite
-  // cookies on it as the session is refreshed.
+  // Pass-through response; Supabase rewrites cookies as the session refreshes.
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    // Fail safe: if env is missing, don't guard routes (dev safety)
-    // but still apply security headers.
+    // Fail safe: don't guard routes if env is missing, but still apply headers.
     return applySecurityHeaders(response);
   }
 
@@ -141,16 +122,9 @@ export async function proxy(request: NextRequest) {
   return applySecurityHeaders(response);
 }
 
-/* ─── Matcher ────────────────────────────────────────────────── */
-
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for:
-     * - _next/static, _next/image (static assets)
-     * - favicon.ico, robots.txt, sitemap.xml
-     * - image files in /public
-     */
+    // All paths except static assets, favicon/robots/sitemap, and public images.
     "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

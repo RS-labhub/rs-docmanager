@@ -1,16 +1,6 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   Layout for /dashboard/pages/**
-   ═══════════════════════════════════════════════════════════════
-   - Desktop (md+): fixed-width sidebar on the left, main content on
-     the right. Both scroll independently.
-   - Mobile (<md): a floating "Pages" button opens a Sheet drawer
-     that hosts the same sidebar component.
-   - A PageSidebarProvider holds the list of pages once so the list
-     view and individual editor share a single cache.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Layout for /dashboard/pages/**: fixed sidebar on desktop, drawer on mobile, both fed by a shared PageSidebarProvider cache.
 import { useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"

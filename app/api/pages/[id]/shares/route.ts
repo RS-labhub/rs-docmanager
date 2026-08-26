@@ -1,16 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   /api/pages/[id]/shares — manage explicit page_shares
-   ═══════════════════════════════════════════════════════════════
-   GET    → list current shares (with basic profile info)
-   PUT    → upsert a share ({ user_id, permission })
-   DELETE → remove a share (?user_id=<uuid>)
-
-   Only full_access callers can mutate shares. Shared users must
-   belong to the same org as the page unless visibility allows
-   external access (public_link). External invites use a separate
-   endpoint (page_invites) — not shipped in Phase 1.
-   ═══════════════════════════════════════════════════════════════ */
-
+// /api/pages/[id]/shares — manage explicit page_shares. GET lists shares,  PUT upserts { user_id, permission }, DELETE removes by ?user_id. Only full_access callers can mutate; shared users must be in the same org.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, getClientIp, type AuthedUser } from "@/lib/auth/require";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,10 +15,7 @@ interface RouteCtx {
   params: Promise<{ id: string }>;
 }
 
-/**
- * Loads page + caller's own share so we can gate on full_access.
- * Returns `null` tuple members if not found.
- */
+// Loads page + caller's own share so we can gate on full_access.
 async function loadPageAndCallerShare(pageId: string, authed: AuthedUser) {
   const admin = createAdminClient();
   const [{ data: page }, { data: share }] = await Promise.all([
@@ -71,8 +56,6 @@ function gate(
   }
   return null;
 }
-
-/* ─── GET ────────────────────────────────────────────────────── */
 
 export const GET = withAuth(async (authed, _req: NextRequest, ctx: RouteCtx) => {
   const { id } = await ctx.params;
@@ -124,8 +107,6 @@ export const GET = withAuth(async (authed, _req: NextRequest, ctx: RouteCtx) => 
     })),
   });
 });
-
-/* ─── PUT ────────────────────────────────────────────────────── */
 
 export const PUT = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => {
   const { id } = await ctx.params;
@@ -182,9 +163,7 @@ export const PUT = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => {
     );
   }
 
-  // Same-org requirement unless (a) god role (system-wide access),
-  // (b) public_link page, or (c) the page is a personal page (no org)
-  // — personal pages can invite anyone directly.
+  // Same-org required unless: god role, public_link page, or personal page (no org).
   const sameOrg = target.org_id === pageRow.org_id;
   const isGod = authed.profile.role === "god";
   const isPersonalPage = pageRow.org_id === null;
@@ -233,7 +212,7 @@ export const PUT = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => {
   return NextResponse.json({ share: upserted as PageShare });
 });
 
-/* ─── DELETE ─────────────────────────────────────────────────── */
+// DELETE
 
 export const DELETE = withAuth(
   async (authed, req: NextRequest, ctx: RouteCtx) => {

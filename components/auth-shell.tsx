@@ -4,17 +4,7 @@ import React from "react"
 import Link from "next/link"
 import Image from "next/image"
 
-/**
- * Shared chrome for the unauthenticated pages (login, register,
- * forgot-password, reset-password).
- *
- * Layout contract:
- *   lg+: two columns. Left is sticky (no scroll) and contains the
- *        brand / marketing panel. Right scrolls with the page and
- *        hosts the form + footer.
- *   < lg: single column. Header at the top, form in the middle,
- *        footer at the bottom.
- */
+// Shared chrome for the unauthenticated pages (login, register, forgot/reset password).
 export function AuthShell({
   leftPanel,
   children,
@@ -32,7 +22,7 @@ export function AuthShell({
       </div>
 
       <div className="grid lg:grid-cols-2 lg:h-full">
-        {/* ─── Left: fixed brand panel (no scroll on lg+) ─── */}
+        {/* Left: fixed brand panel, no scroll on lg+ */}
         <aside className="hidden lg:flex lg:h-full lg:overflow-hidden border-r bg-gradient-to-br from-muted/40 via-background to-background">
           <div className="flex flex-col w-full p-10 xl:p-14 min-h-0">
             <AuthBrandLink />
@@ -42,7 +32,7 @@ export function AuthShell({
           </div>
         </aside>
 
-        {/* ─── Right: only this column scrolls on lg+ ─── */}
+        {/* Right: only this column scrolls on lg+ */}
         <div className="flex flex-col min-h-[100dvh] lg:h-full lg:min-h-0 lg:overflow-y-auto">
           {/* Mobile-only top bar with brand (shown when left pane is hidden). */}
           <header className="lg:hidden border-b bg-background/60 backdrop-blur-sm">
@@ -68,7 +58,7 @@ export function AuthShell({
   )
 }
 
-/** Logo + app name, linked to `/`. */
+/* Logo + app name, linked to `/`. */
 export function AuthBrandLink({ compact = false }: { compact?: boolean }) {
   return (
     <Link
@@ -82,10 +72,7 @@ export function AuthBrandLink({ compact = false }: { compact?: boolean }) {
         width={180}
         height={40}
         priority
-        // Size via inline `height`; let the browser compute width from
-        // the intrinsic aspect ratio. This keeps Next.js happy about
-        // preserving the original logo ratio (no className-driven size
-        // conflict).
+        // Fixed height; width follows the logo's intrinsic aspect ratio.
         style={{ height: compact ? 28 : 36, width: "auto" }}
         className="object-contain"
       />
@@ -102,7 +89,7 @@ export function AuthBrandLink({ compact = false }: { compact?: boolean }) {
   )
 }
 
-/** Footer line shared by all auth pages. */
+/* Footer line shared by all auth pages. */
 export function AuthFooterText() {
   return (
     <p className="text-[11px] text-muted-foreground text-center lg:text-left leading-relaxed">

@@ -34,7 +34,8 @@ export default function SettingsPage() {
     if (!user) return
     setSaving(true)
     const supabase = createClient()
-    await (supabase.from("profiles") as any)
+    await supabase
+      .from("profiles")
       .update({ full_name: fullName.trim() })
       .eq("id", user.id)
     setSaving(false)
@@ -62,7 +63,7 @@ export default function SettingsPage() {
     if (!user || !orgCode.trim()) return
     setJoiningOrg(true)
     setJoinMessage(null)
-    const result = await joinOrganization(user.id, orgCode.trim())
+    const result = await joinOrganization(orgCode.trim())
     if (result.success) {
       setJoinMessage({ type: "success", text: `Request to join ${result.orgName} submitted! A Super Admin must approve your membership.` })
       setOrgCode("")

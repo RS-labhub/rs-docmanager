@@ -1,18 +1,7 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   BlockNote rich editor wrapper (Mantine theme).
-
-   This component is intentionally self-contained:
-   - creates an editor with the caller's initial JSON tree
-   - debounces changes and hands them to the parent (`onChange`)
-   - emits a lossy markdown cache alongside the JSON tree
-   - honours `readOnly` for viewers/commenters
-
-   Security note: the editor only renders what the server returns.
-   We never interpolate HTML; BlockNote handles sanitisation.
-   ═══════════════════════════════════════════════════════════════ */
-
+// BlockNote rich editor wrapper (Mantine theme). Debounces changes,
+// emits a markdown cache alongside JSON, and honours readOnly.
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import { useCreateBlockNote } from "@blocknote/react"
 import { BlockNoteView } from "@blocknote/mantine"
@@ -26,20 +15,7 @@ import {
   enhanceLinks,
 } from "./page-editor-enhancers"
 
-// The stock BlockNote toggleListItem block has a regression in this
-// version that can lock up the browser tab when expanded with an
-// empty child slot (it subscribes to editor.onChange inside the
-// block's NodeView but never unsubscribes, and re-renders can fan
-// out into a feedback loop). Strip it from the schema until upstream
-// ships a fix. Everything else ships with the default behaviour.
-//
-// Code-block language picker: we tried wiring
-// `createCodeBlockSpec({ supportedLanguages })` to get BlockNote's
-// built-in language <select>, but that path makes the editor hang
-// in this project (likely a dev-bundler interaction with the shiki
-// highlighter plugin). Until upstream is fixed we fall back to the
-// default code block — users can still type ``` + lang to set the
-// language, it just isn't switchable from the UI.
+// toggleListItem has a regression that can lock up the tab; stripped until fixed.
 const { toggleListItem: _removedToggleListItem, ...safeBlockSpecs } =
   defaultBlockSpecs
 void _removedToggleListItem
@@ -54,7 +30,6 @@ interface PageEditorProps {
   initialContent: BlockTree | null | undefined
   readOnly?: boolean
   onChange?: (payload: { content: BlockTree; markdown: string }) => void
-  /** Debounce window before onChange fires, ms. */
   debounceMs?: number
 }
 
@@ -66,8 +41,7 @@ export function PageEditor({
 }: PageEditorProps) {
   const { resolvedTheme } = useTheme()
 
-  // BlockNote is picky about the initial value: it must be a non-empty
-  // array or undefined. Empty arrays crash the editor, so we default.
+  // BlockNote requires a non-empty array or undefined; empty arrays crash it.
   const initial = useMemo(() => {
     if (Array.isArray(initialContent) && initialContent.length > 0) {
       return initialContent as any
@@ -84,41 +58,51 @@ export function PageEditor({
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 
+  const emit = useCallback(async () => {
+    try {
+      const content = editor.document as BlockTree
+      const markdown = await editor.blocksToMarkdownLossy(editor.document)
+      onChangeRef.current?.({ content, markdown })
+    } catch (err) {
+      console.error("[PageEditor] serialize failed", err)
+    }
+  }, [editor])
+
   const handleChange = useCallback(() => {
     if (!onChangeRef.current) return
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(async () => {
-      try {
-        const content = editor.document as BlockTree
-        // blocksToMarkdownLossy lives on the editor instance (DOM-backed).
-        const markdown = await editor.blocksToMarkdownLossy(editor.document)
-        onChangeRef.current?.({ content, markdown })
-      } catch (err) {
-        console.error("[PageEditor] serialize failed", err)
-      }
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null
+      void emit()
     }, debounceMs)
-  }, [editor, debounceMs])
+  }, [emit, debounceMs])
+
+  // Flush the pending debounce so edits aren't lost on unmount or tab hide.
+  const flush = useCallback(() => {
+    if (!timerRef.current) return
+    clearTimeout(timerRef.current)
+    timerRef.current = null
+    void emit()
+  }, [emit])
 
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush()
     }
-  }, [])
+    document.addEventListener("visibilitychange", onHide)
+    window.addEventListener("beforeunload", flush)
+    return () => {
+      document.removeEventListener("visibilitychange", onHide)
+      window.removeEventListener("beforeunload", flush)
+      flush()
+    }
+  }, [flush])
 
-  // ── Post-render DOM enhancers ──────────────────────────────────
-  //
-  // These run AFTER BlockNote has painted its tree. We use a
-  // MutationObserver to react to incremental changes instead of
-  // forking the editor schema, which would risk the same kind of
-  // hangs we saw with `createCodeBlockSpec`. Everything here is
-  // scoped to `surfaceRef.current`, idempotent, and torn down on
-  // unmount.
+  // Post-render DOM enhancers: run after BlockNote paints, via MutationObserver.
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
-  // Build/cache the link hover overlay once. It's a floating
-  // toolbar that the enhancer repositions on mouseenter of any
-  // anchor inside the editor.
+  // Cached link-hover overlay, repositioned on mouseenter of any anchor.
   const getOverlay = useCallback(() => {
     if (overlayRef.current) return overlayRef.current
     const el = document.createElement("div")
@@ -155,8 +139,7 @@ export function PageEditor({
       if (target && fn) fn(target)
       el.style.display = "none"
     })
-    // Open-in-new-tab text is just the URL; we keep it as a link
-    // so ctrl-click / middle-click work naturally.
+    // Open-in-new-tab text is just the URL; we keep it as a link so ctrl-click / middle-click work naturally.
     urlEl.addEventListener("mouseenter", () => {
       urlEl.textContent = el.dataset.href ?? ""
       urlEl.href = el.dataset.href ?? "#"
@@ -182,8 +165,7 @@ export function PageEditor({
     }
 
     const unlinkAnchor = (a: HTMLAnchorElement) => {
-      // Replace the anchor with its own text content; BlockNote
-      // will pick this up on the next document read.
+      // Replace the anchor with its own text content; BlockNote will pick this up on the next document read.
       const text = document.createTextNode(a.textContent ?? "")
       a.replaceWith(text)
     }
@@ -202,8 +184,7 @@ export function PageEditor({
     // Initial pass once BlockNote has mounted its DOM.
     const initial = window.setTimeout(run, 0)
 
-    // Debounced observer so batched edits don't re-enhance on every
-    // keystroke.
+    // Debounced observer so batched edits don't re-enhance on every keystroke.
     let mTimer: ReturnType<typeof setTimeout> | null = null
     const observer = new MutationObserver(() => {
       if (mTimer) clearTimeout(mTimer)

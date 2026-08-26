@@ -1,12 +1,9 @@
-/* ─────────────────────────────────────────────────────────────
-   Database type definitions — mirrors the Supabase schema
-   ───────────────────────────────────────────────────────────── */
-
+// Database type definitions — mirrors the Supabase schema.
 export type UserRole = "god" | "super_admin" | "admin" | "user";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
-export interface Organization {
+export type Organization = {
   id: string;
   name: string;
   slug: string;
@@ -17,7 +14,7 @@ export interface Organization {
   updated_at: string;
 }
 
-export interface Profile {
+export type Profile = {
   id: string;
   email: string;
   full_name: string;
@@ -32,7 +29,7 @@ export interface Profile {
 
 export type DocumentStatus = "draft" | "published" | "archived" | "under_review";
 
-export interface Document {
+export type Document = {
   id: string;
   ref_number: number;
   title: string;
@@ -57,7 +54,7 @@ export interface Document {
   updated_at: string;
 }
 
-export interface DocumentComment {
+export type DocumentComment = {
   id: string;
   document_id: string;
   user_id: string;
@@ -67,7 +64,7 @@ export interface DocumentComment {
   updated_at: string;
 }
 
-export interface DocumentPassword {
+export type DocumentPassword = {
   id: string;
   document_id: string;
   password_hash: string;
@@ -76,7 +73,7 @@ export interface DocumentPassword {
   updated_at: string;
 }
 
-export interface AiApiKey {
+export type AiApiKey = {
   id: string;
   user_id: string;
   provider: "groq" | "openai" | "anthropic";
@@ -89,7 +86,7 @@ export interface AiApiKey {
   updated_at: string;
 }
 
-export interface AiAgent {
+export type AiAgent = {
   id: string;
   name: string;
   description: string;
@@ -102,7 +99,7 @@ export interface AiAgent {
   updated_at: string;
 }
 
-export interface AiAction {
+export type AiAction = {
   id: string;
   agent_id: string;
   action_type: string;
@@ -119,7 +116,7 @@ export interface AiAction {
   updated_at: string;
 }
 
-export interface AuditLog {
+export type AuditLog = {
   id: string;
   user_id: string;
   action: string;
@@ -131,7 +128,7 @@ export interface AuditLog {
   created_at: string;
 }
 
-/* ─── Notion-style pages ─────────────────────────────────────── */
+// Notion-style pages
 
 export type PageVisibility =
   | "private"
@@ -142,9 +139,9 @@ export type PageVisibility =
 
 export type PagePermission = "view" | "comment" | "edit" | "full_access";
 
-export interface Page {
+export type Page = {
   id: string;
-  /** NULL for personal pages — users with no organization can still create pages. */
+  // NULL for personal pages — users with no organization can still create pages.
   org_id: string | null;
   owner_id: string;
   parent_id: string | null;
@@ -152,15 +149,11 @@ export interface Page {
   emoji: string | null;
   cover_url: string | null;
   cover_storage: string | null;
-  /**
-   * BlockNote document — array of block objects. We store as JSONB
-   * server-side and treat as opaque on the client; the editor owns
-   * the schema.
-   */
+  // BlockNote document, stored as JSONB and opaque on the client.
   content: unknown[];
   markdown_cache: string;
   visibility: PageVisibility;
-  /** Only meaningful when visibility = 'role'. */
+  // Only meaningful when visibility = 'role'.
   min_role: UserRole | null;
   is_archived: boolean;
   position: number;
@@ -168,7 +161,7 @@ export interface Page {
   updated_at: string;
 }
 
-export interface PageShare {
+export type PageShare = {
   id: string;
   page_id: string;
   user_id: string;
@@ -178,7 +171,7 @@ export interface PageShare {
   updated_at: string;
 }
 
-export interface PageInvite {
+export type PageInvite = {
   id: string;
   page_id: string;
   invitee_email: string | null;
@@ -192,20 +185,9 @@ export interface PageInvite {
   created_at: string;
 }
 
-/* ─── Supabase-compatible Database type ─────────────────────── */
-
-/*
-  @supabase/supabase-js v2.95+ requires every table to satisfy
-  `GenericTable = { Row; Insert; Update; Relationships }` where
-  Row / Insert / Update extend `Record<string, unknown>`.
-
-  `Views` must be `Record<string, GenericView>` (or `{}` when empty).
-  `Functions` must be `Record<string, GenericFunction>` (or `{}` when empty).
-  Do NOT use `Record<string, never>` — that produces `never` on
-  every `.from()` call.
-*/
-
-export interface Database {
+// Supabase-compatible Database type. supabase-js v2.95+ requires Row/Insert/Update
+// to extend Record<string, unknown>; use {} not Record<string, never> for empty Views/Functions.
+export type Database = {
   public: {
     Tables: {
       organizations: {

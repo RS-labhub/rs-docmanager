@@ -1,15 +1,11 @@
-/* ─────────────────────────────────────────────────────────────
-   Role-Based Access Control — 4-tier hierarchy
-   god > super_admin > admin > user
-   ───────────────────────────────────────────────────────────── */
-
+// Role-based access control — 4-tier hierarchy: god > super_admin > admin > user.
 import type {
   PagePermission,
   PageVisibility,
   UserRole,
 } from "@/lib/supabase/types";
 
-/** Numeric weight for role comparison (higher = more powerful) */
+// Numeric weight for role comparison (higher = more powerful).
 const ROLE_WEIGHT: Record<UserRole, number> = {
   god: 100,
   super_admin: 75,
@@ -17,17 +13,15 @@ const ROLE_WEIGHT: Record<UserRole, number> = {
   user: 10,
 };
 
-/** Check if roleA outranks roleB */
+// True if roleA outranks roleB.
 export function outranks(roleA: UserRole, roleB: UserRole): boolean {
   return ROLE_WEIGHT[roleA] > ROLE_WEIGHT[roleB];
 }
 
-/** Check if roleA is at least as powerful as roleB */
+// True if roleA is at least as powerful as roleB.
 export function isAtLeast(roleA: UserRole, roleB: UserRole): boolean {
   return ROLE_WEIGHT[roleA] >= ROLE_WEIGHT[roleB];
 }
-
-/* ─── Permission Definitions ────────────────────────────────── */
 
 export const RESOURCES = {
   DOCUMENT: "document",
@@ -66,10 +60,8 @@ interface PermissionContext {
   userOrgId?: string;     // requesting user's org
 }
 
-/**
- * Check if a user role has permission for an action on a resource.
- * Takes into account ownership and org boundaries.
- */
+// Checks if a role has permission for an action on a resource,
+// taking ownership and org boundaries into account.
 export function hasPermission(
   role: UserRole,
   action: Action,
@@ -82,34 +74,33 @@ export function hasPermission(
   // God panel is only for god
   if (resource === RESOURCES.GOD_PANEL) return false;
 
-  // ─── Organization scoping ───────────────────────────────
   // Non-god users can only access resources within their org
   if (ctx.orgId && ctx.userOrgId && ctx.orgId !== ctx.userOrgId) {
     return false;
   }
 
-  // ─── Admin panel access ────────────────────────────────
+  // Admin panel access
   if (resource === RESOURCES.ADMIN_PANEL) {
     return isAtLeast(role, "admin");
   }
 
-  // ─── System settings ───────────────────────────────────
+  // System settings
   if (resource === RESOURCES.SYSTEM_SETTINGS) {
     return isAtLeast(role, "super_admin");
   }
 
-  // ─── Audit logs ─────────────────────────────────────────
+  // Audit logs
   if (resource === RESOURCES.AUDIT_LOG) {
     return isAtLeast(role, "admin");
   }
 
-  // ─── Organization management ───────────────────────────
+  // Organization management
   if (resource === RESOURCES.ORGANIZATION) {
     if (action === ACTIONS.READ) return isAtLeast(role, "admin");
     return isAtLeast(role, "super_admin");
   }
 
-  // ─── User management ──────────────────────────────────
+  // User management
   if (resource === RESOURCES.USER) {
     if (action === ACTIONS.READ) return isAtLeast(role, "admin");
     if (action === ACTIONS.CREATE || action === ACTIONS.DELETE) return isAtLeast(role, "admin");
@@ -124,7 +115,7 @@ export function hasPermission(
     return false;
   }
 
-  // ─── Document management ──────────────────────────────
+  // Document management
   if (resource === RESOURCES.DOCUMENT) {
     if (action === ACTIONS.READ) return true; // visible if same org (checked above)
     if (action === ACTIONS.CREATE) return true; // any user can create
@@ -139,13 +130,13 @@ export function hasPermission(
     return false;
   }
 
-  // ─── AI Agent management ──────────────────────────────
+  // AI agent management
   if (resource === RESOURCES.AI_AGENT) {
     if (action === ACTIONS.READ) return true;
     return isAtLeast(role, "admin");
   }
 
-  // ─── AI Action approval ───────────────────────────────
+  // AI action approval
   if (resource === RESOURCES.AI_ACTION) {
     if (action === ACTIONS.READ) return true;
     if (action === ACTIONS.APPROVE || action === ACTIONS.REJECT) {
@@ -154,7 +145,7 @@ export function hasPermission(
     return isAtLeast(role, "admin");
   }
 
-  // ─── AI API Keys ─────────────────────────────────────
+  // AI API keys
   if (resource === RESOURCES.AI_KEY) {
     // Users can manage their own keys
     if (ctx.userId && ctx.ownerId && ctx.userId === ctx.ownerId) return true;
@@ -164,16 +155,8 @@ export function hasPermission(
   return false;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   PAGE permission resolution
-
-   Mirrors the `public.page_permission_for(pages)` SQL function so
-   server routes (and the client UI for hint/affordance purposes)
-   can compute the same answer without a round-trip. RLS in the
-   database remains the source of truth — this helper exists only
-   for clean error messages and conditional UI.
-   ───────────────────────────────────────────────────────────── */
-
+// Page permission resolution — mirrors `public.page_permission_for` in
+// supabase/schema.sql. RLS remains the source of truth; this is for UI/errors.
 const PERMISSION_RANK: Record<PagePermission, number> = {
   view: 1,
   comment: 2,
@@ -181,7 +164,7 @@ const PERMISSION_RANK: Record<PagePermission, number> = {
   full_access: 4,
 };
 
-/** True if `granted` is at least as strong as `required`. */
+// True if `granted` is at least as strong as `required`.
 export function permissionAtLeast(
   granted: PagePermission | null | undefined,
   required: PagePermission
@@ -193,7 +176,7 @@ export function permissionAtLeast(
 export interface PageAccessInput {
   page: {
     owner_id: string;
-    /** Null for personal pages (users without an organization). */
+    // Null for personal pages (users without an organization).
     org_id: string | null;
     visibility: PageVisibility;
     min_role: UserRole | null;
@@ -203,15 +186,12 @@ export interface PageAccessInput {
     role: UserRole;
     org_id: string | null;
   };
-  /** Caller's explicit share, if any. */
+  // Caller's explicit share, if any.
   share?: { permission: PagePermission } | null;
 }
 
-/**
- * Resolve the highest permission a user has on a page, or `null` if
- * they have no access at all. This MUST stay in lockstep with the
- * `page_permission_for` SQL function in supabase/schema.sql.
- */
+// Resolves the highest permission a user has on a page, or null. Must
+// stay in lockstep with `page_permission_for` in supabase/schema.sql.
 export function resolvePagePermission(
   input: PageAccessInput
 ): PagePermission | null {
@@ -258,7 +238,7 @@ export function resolvePagePermission(
   }
 }
 
-/** Label & color for role badges */
+// Label & color for role badges.
 export function getRoleInfo(role: UserRole) {
   const map: Record<UserRole, { label: string; color: string; bgClass: string }> = {
     god:         { label: "God",         color: "text-red-500",     bgClass: "bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 hover:text-red-800 dark:bg-red-950 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-900 dark:hover:text-red-200 transition-colors" },

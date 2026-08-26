@@ -1,16 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════
-   In-memory rate limiting
-   ═══════════════════════════════════════════════════════════════
-   Uses `rate-limiter-flexible` with an in-memory store. This is
-   per-process only — sufficient for MVP / single-region deploys.
-   For multi-instance production, swap to Upstash Redis or a
-   RateLimiterRedis instance.
-
-   Callers:
-     const limited = await checkRateLimit("login", ip, 5, 60);
-     if (limited) return limited;   // short-circuit with 429
-   ═══════════════════════════════════════════════════════════════ */
-
+// In-memory rate limiting (rate-limiter-flexible). Per-process only —
+// fine for MVP/single-region; swap to Upstash Redis for multi-instance.
 import "server-only";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { NextResponse } from "next/server";
@@ -27,15 +16,7 @@ function getLimiter(name: string, points: number, duration: number) {
   return l;
 }
 
-/**
- * Consume one point for the given key. Returns a 429 Response on
- * overflow, or null on success.
- *
- * @param name   A stable bucket name (e.g. "login", "ai-action").
- * @param key    The identifying key (e.g. IP, userId).
- * @param points Max requests per window.
- * @param duration Window in seconds.
- */
+// Consumes one point for (name, key). Returns a 429 Response on overflow, else null.
 export async function checkRateLimit(
   name: string,
   key: string,

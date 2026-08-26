@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Document } from "@/lib/supabase/types";
 import { requireUser, requireRole, AuthError } from "@/lib/auth/require";
+import { hasValidUnlock } from "@/lib/document-unlock";
 import { hasPermission, RESOURCES, ACTIONS } from "@/lib/permissions";
 import {
   createDocumentSchema,
@@ -11,11 +12,7 @@ import {
 } from "@/lib/schemas";
 import { ZodError } from "zod";
 
-/* ═══════════════════════════════════════════════════════════════
-   Document server actions — identity derived from session, never
-   from client arguments. RLS enforces org-scoping at the DB level.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Document server actions — identity derived from session, never from client arguments. RLS enforces org-scoping at the DB level.
 function errorResult(err: unknown, fallback = "An error occurred") {
   if (err instanceof AuthError) {
     const status = err.response.status;
@@ -29,8 +26,7 @@ function errorResult(err: unknown, fallback = "An error occurred") {
   return { success: false, error: fallback };
 }
 
-/* ─── Get documents for the current user (org-scoped) ───────── */
-
+// Gets documents for the current user (org-scoped).
 export async function getDocuments(): Promise<Document[]> {
   try {
     const authed = await requireUser();
@@ -58,8 +54,7 @@ export async function getDocuments(): Promise<Document[]> {
   }
 }
 
-/* ─── Get all org documents (admins) ────────────────────────── */
-
+// Gets all org documents (admins).
 export async function getAllOrgDocuments(): Promise<Document[]> {
   try {
     const authed = await requireRole("admin");
@@ -82,8 +77,7 @@ export async function getAllOrgDocuments(): Promise<Document[]> {
   }
 }
 
-/* ─── Get all documents across all orgs (god only) ──────────── */
-
+// Gets all documents across all orgs (god only).
 export async function getAllDocuments(): Promise<Document[]> {
   try {
     await requireRole("god");
@@ -104,8 +98,7 @@ export async function getAllDocuments(): Promise<Document[]> {
   }
 }
 
-/* ─── Get single document ───────────────────────────────────── */
-
+// Gets a single document.
 export async function getDocument(id: string): Promise<Document | null> {
   try {
     const authed = await requireUser();
@@ -119,8 +112,7 @@ export async function getDocument(id: string): Promise<Document | null> {
 
     if (error || !data) return null;
 
-    // Authorization: must be same org (god bypass), and either public,
-    // the owner, or at least admin.
+    // Authorization: must be same org (god bypass), and either public, the owner, or at least admin.
     if (authed.profile.role !== "god") {
       if (data.org_id !== authed.profile.org_id) return null;
       if (!data.is_public && data.owner_id !== authed.id) {
@@ -139,13 +131,26 @@ export async function getDocument(id: string): Promise<Document | null> {
       }
     }
 
+    // Password protection is enforced server-side: non-owners (god exempt)
+    // get redacted content until they verify via /api/document-password.
+    if (
+      data.is_password_protected &&
+      data.owner_id !== authed.id &&
+      authed.profile.role !== "god"
+    ) {
+      const unlocked = await hasValidUnlock(data.id, authed.id);
+      if (!unlocked) {
+        return { ...data, content: "", file_url: null };
+      }
+    }
+
     return data;
   } catch {
     return null;
   }
 }
 
-/* ─── Create document ───────────────────────────────────────── */
+// Creates a document.
 
 export async function createDocument(payload: {
   title: string;
@@ -206,7 +211,7 @@ export async function createDocument(payload: {
   }
 }
 
-/* ─── Update document ───────────────────────────────────────── */
+// Updates a document.
 
 export async function updateDocument(
   id: string,
@@ -273,7 +278,7 @@ export async function updateDocument(
   }
 }
 
-/* ─── Delete document ───────────────────────────────────────── */
+// Deletes a document.
 
 export async function deleteDocument(
   id: string

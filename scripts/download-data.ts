@@ -1,7 +1,4 @@
-/**
- * Download all Supabase data to JSON files
- * Usage: bunx tsx scripts/download-data.ts
- */
+// Download all Supabase data to JSON files. Usage: bunx tsx scripts/download-data.ts
 import * as dotenv from "dotenv";
 import * as path from "path";
 import * as fs from "fs";
@@ -34,9 +31,7 @@ const TABLES = [
 
 async function main() {
   console.log("");
-  console.log("========================================================");
   console.log("    AI DocManager — Download All Data");
-  console.log("========================================================");
   console.log("  Project: " + PROJECT_REF);
 
   // Connect

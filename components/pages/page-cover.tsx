@@ -1,10 +1,6 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   Cover image + emoji controls for a page.
-   Thin controller — the editor page owns state + API calls.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Cover image + emoji controls for a page. Thin controller — the editor page owns state + API calls.
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,8 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { ImageIcon, Smile, Trash2, Upload, Link2 } from "lucide-react"
 
-// Small curated emoji set. Not exhaustive — users can paste their
-// own native emoji via the keyboard later if we ship a real picker.
+// Small curated emoji set. Not exhaustive — users can paste their own native emoji via the keyboard later if we ship a real picker.
 const EMOJI_CHOICES = [
   "📄", "📝", "📚", "📘", "📙", "📗", "📕",
   "🗒️", "📋", "📊", "📈", "📉", "🗂️", "🗃️",
@@ -34,7 +29,12 @@ interface PageCoverProps {
   coverUrl: string | null
   emoji: string | null
   canEdit: boolean
-  onUpdate: (patch: { cover_url?: string | null; emoji?: string | null }) => void
+  // persisted = true when the server already saved the change (upload/delete
+  // endpoints), so the parent only needs to update local state.
+  onUpdate: (
+    patch: { cover_url?: string | null; emoji?: string | null },
+    persisted?: boolean
+  ) => void
 }
 
 export function PageCover({
@@ -63,7 +63,7 @@ export function PageCover({
       })
       const json = await res.json()
       if (res.ok) {
-        onUpdate({ cover_url: json.page.cover_url })
+        onUpdate({ cover_url: json.page.cover_url }, true)
       } else {
         alert(json.error ?? "Upload failed")
       }
@@ -77,7 +77,7 @@ export function PageCover({
       method: "DELETE",
       credentials: "include",
     })
-    if (res.ok) onUpdate({ cover_url: null })
+    if (res.ok) onUpdate({ cover_url: null }, true)
   }
 
   function handleExternalUrl() {
@@ -110,8 +110,7 @@ export function PageCover({
           className="h-full w-full object-cover"
         />
         {canEdit && (
-          // Always visible on touch screens (no hover). On pointer-capable
-          // devices we fade it in when the container is hovered/focused.
+          // Always visible on touch screens (no hover). On pointer-capable devices we fade it in when the container is hovered/focused.
           <div className="absolute bottom-2 right-2 flex gap-1.5 md:opacity-0 md:group-hover/cover:opacity-100 md:focus-within:opacity-100 transition-opacity">
             <input
               ref={fileRef}

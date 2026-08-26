@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import Link from "next/link"
@@ -49,8 +49,7 @@ import type {
   UserRole,
 } from "@/lib/supabase/types"
 
-// BlockNote uses browser-only APIs at module evaluation time; keep it
-// client-side and skip SSR to avoid hydration mismatches.
+// BlockNote needs browser APIs, so it's client-only with no SSR.
 const PageEditor = dynamic(
   () => import("@/components/pages/page-editor").then((m) => m.PageEditor),
   {
@@ -95,92 +94,125 @@ export default function PageEditorPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // --- Load ---
   useEffect(() => {
     if (!pageId) return
+    // Abort + stale-guard so rapid navigation can't show an older page's data.
+    const controller = new AbortController()
+    let stale = false
     const load = async () => {
       setLoading(true)
       setError(null)
       try {
         const res = await fetch(`/api/pages/${pageId}`, {
           credentials: "include",
+          signal: controller.signal,
         })
         const json = await res.json()
+        if (stale) return
         if (!res.ok) throw new Error(json.error ?? "Failed to load page")
         setPage(json.page as Page)
         setPermission(json.permission as PagePermission)
         setTitle((json.page.title as string) ?? "Untitled")
+        setSaveState("idle")
       } catch (err: any) {
+        if (stale || err?.name === "AbortError") return
         setError(err.message)
       } finally {
-        setLoading(false)
+        if (!stale) setLoading(false)
       }
     }
     load()
+    return () => {
+      stale = true
+      controller.abort()
+    }
   }, [pageId])
 
   const canEdit = permission === "edit" || permission === "full_access"
   const canManage = permission === "full_access"
 
-  // --- Generic patch helper ---
+  // Serialize PATCH requests so a slow response can't clobber a newer one,
+  // and concurrent title/content saves don't interleave.
+  const patchChainRef = useRef<Promise<void>>(Promise.resolve())
+  const pageIdRef = useRef<string | null>(null)
+  pageIdRef.current = page?.id ?? null
+  // Route param, used to drop responses that arrive after navigating away.
+  const routeIdRef = useRef(pageId)
+  routeIdRef.current = pageId
+
   const patch = useCallback(
-    async (body: Record<string, unknown>) => {
-      if (!page) return
+    (body: Record<string, unknown>, explicitId?: string) => {
+      const id = explicitId ?? pageIdRef.current
+      if (!id) return Promise.resolve()
       setSaveState("saving")
-      try {
-        const res = await fetch(`/api/pages/${page.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(body),
-        })
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.error ?? "Save failed")
-        const nextPage = json.page as Page
-        setPage(nextPage)
-        // Keep the sidebar list in sync without refetching.
-        sidebar?.patchLocal(nextPage.id, {
-          title: nextPage.title,
-          emoji: nextPage.emoji,
-          is_archived: nextPage.is_archived,
-          visibility: nextPage.visibility,
-          updated_at: nextPage.updated_at,
-        })
-        setSaveState("saved")
-        setTimeout(() => {
-          setSaveState((s) => (s === "saved" ? "idle" : s))
-        }, 1200)
-      } catch (err: any) {
-        setSaveState("error")
-        toast({
-          title: "Save failed",
-          description: err.message,
-          variant: "destructive",
-        })
+      const run = async () => {
+        try {
+          const res = await fetch(`/api/pages/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            // keepalive lets the final flush survive tab close / navigation.
+            keepalive: true,
+            body: JSON.stringify(body),
+          })
+          const json = await res.json()
+          if (!res.ok) throw new Error(json.error ?? "Save failed")
+          const nextPage = json.page as Page
+          sidebar?.patchLocal(nextPage.id, {
+            title: nextPage.title,
+            emoji: nextPage.emoji,
+            is_archived: nextPage.is_archived,
+            visibility: nextPage.visibility,
+            updated_at: nextPage.updated_at,
+          })
+          // Don't clobber state if the user has navigated to another page.
+          if (routeIdRef.current !== nextPage.id) return
+          setPage(nextPage)
+          setSaveState("saved")
+          setTimeout(() => {
+            setSaveState((s) => (s === "saved" ? "idle" : s))
+          }, 1200)
+        } catch (err: any) {
+          if (routeIdRef.current !== id) return
+          setSaveState("error")
+          toast({
+            title: "Save failed",
+            description: err.message,
+            variant: "destructive",
+          })
+        }
       }
+      patchChainRef.current = patchChainRef.current.then(run)
+      return patchChainRef.current
     },
-    [page, toast]
+    [sidebar, toast]
   )
 
-  // --- Title debounced save ---
+  // Debounced title save; compares normalized values to avoid a re-patch loop.
   useEffect(() => {
     if (!page) return
-    if (title === page.title) return
+    const normalized = title.trim() || "Untitled"
+    if (normalized === page.title) return
     const t = setTimeout(() => {
-      patch({ title: title.trim() || "Untitled" })
+      patch({ title: normalized })
     }, 600)
     return () => clearTimeout(t)
   }, [title, page, patch])
 
-  // --- Editor change → content + markdown cache ---
+  // Bind saves to the page the edit belongs to, so a flush that fires
+  // during navigation can never write one page's content into another.
+  const editorPageId = page?.id
   const handleEditorChange = useCallback(
     (payload: { content: unknown[]; markdown: string }) => {
-      patch({ content: payload.content, markdown_cache: payload.markdown })
+      if (!editorPageId) return
+      patch(
+        { content: payload.content, markdown_cache: payload.markdown },
+        editorPageId
+      )
     },
-    [patch]
+    [patch, editorPageId]
   )
 
-  // --- Delete ---
   async function handleDelete() {
     if (!page) return
     setDeleting(true)
@@ -211,7 +243,6 @@ export default function PageEditorPage() {
     patch({ is_archived: !page.is_archived })
   }
 
-  // --- Markdown export ---
   async function handleExport() {
     if (!page) return
     const res = await fetch(`/api/pages/${page.id}/markdown`, {
@@ -368,14 +399,14 @@ export default function PageEditorPage() {
         coverUrl={page.cover_url}
         emoji={page.emoji}
         canEdit={canEdit}
-        onUpdate={(p) => {
-          // For external URL (cover_url string or null) the PATCH endpoint is
-          // the right call; upload/delete come through the dedicated endpoint
-          // and patch directly on the server.
+        onUpdate={(p, persisted) => {
+          if (persisted) {
+            // Server already saved — just sync local state.
+            setPage((prev) => (prev ? { ...prev, ...p } : prev))
+            return
+          }
           if ("cover_url" in p) {
             if (typeof p.cover_url === "string" || p.cover_url === null) {
-              // If this arrived from a cover endpoint call, the server already
-              // persisted it. Only PATCH if we changed emoji or an external URL.
               patch({ cover_url: p.cover_url })
               return
             }
@@ -397,7 +428,9 @@ export default function PageEditorPage() {
         />
 
         <div className="-mx-3 sm:mx-0 overflow-x-hidden">
+          {/* Keyed by page id — BlockNote only reads initialContent once, so the editor must be recreated when switching pages. */}
           <PageEditor
+            key={page.id}
             initialContent={page.content as unknown[]}
             readOnly={!canEdit}
             onChange={handleEditorChange}

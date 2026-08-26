@@ -64,9 +64,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
       }
     }
 
-    // ACL has passed — use the admin client for storage + cross-org
-    // ops. The `documents` bucket is RLS-locked to service_role and
-    // `audit_logs` has no insert policy for authenticated users.
+    // ACL has passed — use the admin client for storage + cross-org ops. The `documents` bucket is RLS-locked to service_role and `audit_logs` has no insert policy for authenticated users.
     const admin = createAdminClient();
 
     // Delete storage file
@@ -82,14 +80,19 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
       }
     }
 
-    // Only god can propagate a delete across all orgs (god-distribution
-    // artifacts). Everyone else deletes exactly the row they targeted.
+    // Only god can propagate a delete across all orgs (god-distribution artifacts). Everyone else deletes exactly the row they targeted.
     if (authed.profile.role === "god") {
-      const { data: allCopies } = await admin
+      // Distributed copies share title, owner, AND content — title+owner alone could destroy unrelated same-named documents.
+      let copyQuery = admin
         .from("documents")
         .select("id, file_url, org_id")
         .eq("title", doc.title)
-        .eq("owner_id", doc.owner_id);
+        .eq("owner_id", doc.owner_id)
+        .eq("content", doc.content);
+      copyQuery = doc.file_url
+        ? copyQuery.eq("file_url", doc.file_url)
+        : copyQuery.is("file_url", null);
+      const { data: allCopies } = await copyQuery;
 
       if (allCopies && allCopies.length > 1) {
         const urlsDeleted = new Set<string>();
@@ -110,8 +113,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
         const { error: deleteError } = await admin
           .from("documents")
           .delete()
-          .eq("title", doc.title)
-          .eq("owner_id", doc.owner_id);
+          .in("id", allCopies.map((c) => c.id));
 
         if (deleteError) {
           console.error("[delete-document]", deleteError);

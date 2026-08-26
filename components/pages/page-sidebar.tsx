@@ -1,19 +1,6 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   Notion-style sidebar for /dashboard/pages/**
-   ═══════════════════════════════════════════════════════════════
-   Shared across the list page and the individual editor. Owns:
-   - loading the user's pages
-   - search filter
-   - "New page" button → POSTs to /api/pages and routes to the editor
-   - per-row menu: archive, delete
-   - exposes a refresh callback via context for external mutators
-
-   Mobile: the parent layout renders this inside a Sheet (drawer).
-   Desktop: rendered inline as a fixed-width column.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Notion-style sidebar for /dashboard/pages/** — list, search, create, archive, delete.
 import {
   createContext,
   useCallback,
@@ -51,8 +38,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-/* ─── Shared types ───────────────────────────────────────────── */
-
 interface SidebarPage {
   id: string
   title: string
@@ -66,9 +51,7 @@ interface SidebarContextValue {
   pages: SidebarPage[]
   loading: boolean
   refresh: () => Promise<void>
-  /** Optimistically update a single page row (e.g. title changed in editor). */
   patchLocal: (id: string, patch: Partial<SidebarPage>) => void
-  /** Remove a page from the local cache (e.g. deleted). */
   removeLocal: (id: string) => void
 }
 
@@ -77,8 +60,6 @@ const SidebarContext = createContext<SidebarContextValue | null>(null)
 export function usePageSidebar() {
   return useContext(SidebarContext)
 }
-
-/* ─── Provider that owns the list ────────────────────────────── */
 
 export function PageSidebarProvider({ children }: { children: ReactNode }) {
   const [pages, setPages] = useState<SidebarPage[]>([])
@@ -127,10 +108,7 @@ export function PageSidebarProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/* ─── Sidebar UI ─────────────────────────────────────────────── */
-
 interface PageSidebarProps {
-  /** Called after a successful create (mobile uses this to close the drawer). */
   onNavigate?: () => void
   className?: string
 }
@@ -156,7 +134,11 @@ export function PageSidebar({ onNavigate, className }: PageSidebarProps) {
     let list = pages
     if (!showArchived) list = list.filter((p) => !p.is_archived)
     if (q) list = list.filter((p) => p.title.toLowerCase().includes(q))
-    return list
+    // Re-sort locally — patchLocal updates updated_at without refetching.
+    return [...list].sort(
+      (a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    )
   }, [pages, search, showArchived])
 
   async function handleCreate() {
@@ -457,10 +439,7 @@ export function PageSidebar({ onNavigate, className }: PageSidebarProps) {
           type="button"
           onClick={() => setShowArchived((v) => !v)}
           className="w-full flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors"
-          // Browser form-filler extensions inject `fdprocessedid` on
-          // buttons before React hydrates, which trips React's
-          // attribute-mismatch warning. The attribute is cosmetic and
-          // safe to ignore for this button.
+          // Suppress benign fdprocessedid mismatch from browser autofill extensions.
           suppressHydrationWarning
         >
           <Archive className="h-3 w-3" />

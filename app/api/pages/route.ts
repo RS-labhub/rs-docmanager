@@ -1,11 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   /api/pages — list + create
-   ═══════════════════════════════════════════════════════════════
-   Both endpoints rely on RLS to filter what the caller can see.
-   The list query is delivered through the user-scoped Supabase
-   client so SELECT honours `page_permission_for(...)`.
-   ═══════════════════════════════════════════════════════════════ */
-
+// /api/pages — list + create. Both rely on RLS (page_permission_for) via the user-scoped Supabase client to filter what the caller can see.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, getClientIp } from "@/lib/auth/require";
 import { createServerClient } from "@/lib/supabase/server";
@@ -20,8 +13,6 @@ import {
 import type { Page } from "@/lib/supabase/types";
 
 export const runtime = "nodejs";
-
-/* ─── GET /api/pages ─────────────────────────────────────────── */
 
 export const GET = withAuth(async (authed, req: NextRequest) => {
   const url = new URL(req.url);
@@ -51,8 +42,6 @@ export const GET = withAuth(async (authed, req: NextRequest) => {
   return NextResponse.json({ pages: data ?? [] });
 });
 
-/* ─── POST /api/pages ────────────────────────────────────────── */
-
 export const POST = withAuth(async (authed, req: NextRequest) => {
   // Rate-limit page creation: 30 / 5 min / user.
   const rl = await checkRateLimit("page-create", authed.id, 30, 300);
@@ -70,18 +59,14 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
 
   const isPersonal = !authed.profile.org_id;
 
-  // Personal pages (no org) must be private. We silently clamp
-  // rather than 400ing so the UI can default to 'org' and still
-  // work for org-less users.
+  // Personal pages (no org) must be private; clamp rather than 400.
   if (isPersonal) {
     parsed.visibility = "private";
     parsed.min_role = null;
-    // Personal pages can't have a parent in someone else's tree.
     parsed.parent_id = null;
   }
 
-  // If a parent_id is supplied, verify the caller can edit that
-  // parent (no smuggling pages into someone else's tree).
+  // Verify the caller can edit the parent (no smuggling into another org's tree).
   if (parsed.parent_id && authed.profile.org_id) {
     const userClient = await createServerClient();
     const { data: parent } = await userClient
@@ -100,18 +85,13 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
     }
   }
 
-  // If the caller didn't provide content, ship the default template
-  // (small headline + ~75 blank paragraphs so the page opens "roomy"
-  // like Notion rather than a single collapsed line).
+  // Default to a small template if no content was supplied.
   const initialContent = parsed.content ?? buildDefaultPageContent();
   const markdown =
     parsed.markdown_cache ??
     (parsed.content ? blocksToMarkdown(initialContent) : defaultPageMarkdown());
 
-  // Use the admin client for the insert so we can return the row
-  // immediately even when RLS would normally deny SELECT after
-  // INSERT (the WITH CHECK on insert is enforced anyway via the
-  // explicit owner_id / org_id we pass below).
+  // Admin client so we can return the row even where RLS would deny SELECT after INSERT.
   const admin = createAdminClient();
   const { data: created, error } = await admin
     .from("pages")

@@ -8,12 +8,8 @@ import { ZodError } from "zod";
 
 export const runtime = "nodejs";
 
-/**
- * POST /api/auth/register
- * Creates a Supabase Auth user + matching profile row. Password
- * storage is handled entirely by Supabase Auth (bcrypt + salt in
- * auth.users). We do NOT maintain our own credentials table.
- */
+// POST /api/auth/register — creates a Supabase Auth user + profile row.
+// Password storage is handled entirely by Supabase Auth.
 export async function POST(req: NextRequest) {
   try {
     // Rate-limit by IP: 10 signups per hour per IP.
@@ -39,6 +35,9 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
+      // Duplicate-email responses are enumerable; throttle them hard (3/hr/IP).
+      const rlDup = await checkRateLimit("register-dup", ip, 3, 60 * 60);
+      if (rlDup) return rlDup;
       return NextResponse.json(
         { error: "An account with this email already exists" },
         { status: 409 }
@@ -57,6 +56,9 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (!org) {
+        // Throttle org-code guessing separately from normal signups (5/hr/IP).
+        const rlOrg = await checkRateLimit("register-orgcode", ip, 5, 60 * 60);
+        if (rlOrg) return rlOrg;
         return NextResponse.json(
           { error: "Invalid organization code" },
           { status: 404 }

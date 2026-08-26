@@ -1,14 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════
-   Default BlockNote content used when a new page is created.
-   Ships a small template up top followed by ~75 empty paragraph
-   blocks so the editor opens with plenty of room to write —
-   similar to how Notion pre-allocates room on a fresh page.
-   ═══════════════════════════════════════════════════════════════ */
-
-/**
- * BlockNote generates stable block IDs on the client. For server
- * inserts we let BlockNote re-ID on first render by omitting `id`.
- */
+// Default BlockNote content for new pages: a small template + ~75
+// empty paragraphs so the editor opens with room to write.
 export function buildDefaultPageContent(): unknown[] {
   const blocks: unknown[] = [];
 
@@ -48,7 +39,7 @@ export function buildDefaultPageContent(): unknown[] {
   return blocks;
 }
 
-/** Plain-text markdown cache corresponding to the default content. */
+// Plain-text markdown cache corresponding to the default content.
 export function defaultPageMarkdown(): string {
   return [
     "## Getting started",

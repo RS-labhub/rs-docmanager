@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, randomBytes } from "crypto";
 
 export const runtime = "nodejs";
 
-const DEFAULT_PASSWORD = "Password123!";
+// Random per-run password, returned once in the seed response.
+const DEFAULT_PASSWORD = `Seed-${randomBytes(9).toString("base64url")}`;
 
 function checkSecret(req: NextRequest): boolean {
   const expected = process.env.SEED_SECRET;
@@ -16,16 +17,9 @@ function checkSecret(req: NextRequest): boolean {
   return timingSafeEqual(a, b);
 }
 
-/**
- * POST /api/seed
- * Seeds the database with initial demo data.
- *
- * Requires `x-seed-token` header matching `SEED_SECRET` env var.
- * Refuses to run if any profile already exists.
- */
+// Seeds the database with demo data. Requires x-seed-token header matching SEED_SECRET; refuses to run if any profile already exists.
 export async function POST(req: NextRequest) {
-  // Refuse to run in production unless explicitly opted-in. Seeding a
-  // prod DB with a known default password would be catastrophic.
+  // Refuse in production unless explicitly opted-in.
   if (
     process.env.NODE_ENV === "production" &&
     process.env.ALLOW_PROD_SEED !== "true"
@@ -55,7 +49,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── Organizations ─────────────────────────────────────
+    // Organizations
     const orgs = [
       { id: "00000000-0000-0000-0000-000000000001", name: "Acme Corporation", slug: "acme", org_code: "ACME2026", description: "The Acme Corporation — makers of everything" },
       { id: "00000000-0000-0000-0000-000000000002", name: "Globex Industries", slug: "globex", org_code: "GLOBEX01", description: "Globex — pushing the boundaries of innovation" },
@@ -65,7 +59,7 @@ export async function POST(req: NextRequest) {
     const { error: orgErr } = await supabase.from("organizations").insert(orgs);
     if (orgErr) throw new Error(`Org insert failed: ${orgErr.message}`);
 
-    // ─── Profiles ──────────────────────────────────────────
+    //Profiles 
     const profiles = [
       { id: "10000000-0000-0000-0000-000000000001", email: "god@system.local", full_name: "System God", role: "god" as const, org_id: null, is_active: true },
       { id: "20000000-0000-0000-0000-000000000001", email: "superadmin@acme.com", full_name: "Alice Wong", role: "super_admin" as const, org_id: "00000000-0000-0000-0000-000000000001", is_active: true },
@@ -96,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { error: profileErr } = await supabase.from("profiles").insert(profiles);
     if (profileErr) throw new Error(`Profile insert failed: ${profileErr.message}`);
 
-    // ─── Documents ─────────────────────────────────────────
+    // Documents
     const docs = [
       {
         title: "Getting Started Guide",
@@ -143,8 +137,16 @@ export async function POST(req: NextRequest) {
     const { error: docErr } = await supabase.from("documents").insert(docs);
     if (docErr) throw new Error(`Document insert failed: ${docErr.message}`);
 
-    // ─── AI Agents ─────────────────────────────────────────
-    const agents = [
+    // AI Agents
+    const agents: Array<{
+      name: string
+      description: string
+      role: "assistant" | "analyzer" | "editor" | "admin"
+      capabilities: string[]
+      org_id: string
+      created_by: string
+      is_active: boolean
+    }> = [
       {
         name: "Document Assistant",
         description: "Helps with document organization, summarization, and basic tasks",

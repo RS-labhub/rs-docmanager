@@ -1,12 +1,6 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   /dashboard/pages — overview + recent pages.
-   The primary navigation lives in the sidebar (layout.tsx). This
-   page shows a grid of the most recently updated pages for quick
-   re-entry, plus a big "New page" CTA for empty state.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Pages overview — grid of recently updated pages + "New page" CTA.
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -79,6 +73,10 @@ export default function PagesOverviewPage() {
     if (!sidebar) return []
     return sidebar.pages
       .filter((p) => !p.is_archived)
+      .sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )
       .slice(0, 12)
   }, [sidebar])
 

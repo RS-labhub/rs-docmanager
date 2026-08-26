@@ -1,23 +1,13 @@
-/* ═══════════════════════════════════════════════════════════════
-   Server-side authorization helpers
-   ═══════════════════════════════════════════════════════════════
-   Every API route / Server Action MUST start with one of these
-   helpers. They derive identity from the Supabase cookie session —
-   never from the request body or query string.
-
-   On failure they throw a Response, which the route handler can
-   either let bubble up (Next will return it) or catch. For
-   ergonomics, most callers wrap the body in `withAuth()` below.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Server-side authorization helpers. Every API route / Server Action must
+// start with one of these; identity comes from the Supabase cookie session,
+// never the request body. On failure they throw a Response (see withAuth).
 import "server-only";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { isAtLeast } from "@/lib/permissions";
 import type { Profile, UserRole } from "@/lib/supabase/types";
 
-/* ─── Error type: a thrown NextResponse short-circuits the route ── */
-
+// A thrown NextResponse short-circuits the route.
 export class AuthError extends Error {
   response: NextResponse;
   constructor(response: NextResponse) {
@@ -34,19 +24,14 @@ function forbidden(msg = "Forbidden") {
   return new AuthError(NextResponse.json({ error: msg }, { status: 403 }));
 }
 
-/* ─── Core: resolve the current user from the cookie session ──── */
-
 export interface AuthedUser {
   id: string;
   email: string;
   profile: Profile;
 }
 
-/**
- * Resolve the calling user from the Supabase cookie session.
- * Throws AuthError(401) if unauthenticated.
- * Throws AuthError(403) if the profile is inactive, pending, or rejected.
- */
+// Resolves the caller from the cookie session. Throws AuthError(401) if
+// unauthenticated, or 403 if inactive/pending/rejected.
 export async function requireUser(): Promise<AuthedUser> {
   const supabase = await createServerClient();
   const {
@@ -58,8 +43,7 @@ export async function requireUser(): Promise<AuthedUser> {
     throw unauthorized();
   }
 
-  // Load the full profile (role, org, status) — use the user-scoped
-  // client so RLS is enforced (a user can always read their own profile).
+  // User-scoped client so RLS is enforced (a user can read their own profile).
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select("*")
@@ -89,9 +73,7 @@ export async function requireUser(): Promise<AuthedUser> {
   };
 }
 
-/**
- * Like requireUser but enforces a minimum role tier.
- */
+// Like requireUser but enforces a minimum role tier.
 export async function requireRole(min: UserRole): Promise<AuthedUser> {
   const authed = await requireUser();
   if (!isAtLeast(authed.profile.role, min)) {
@@ -100,10 +82,7 @@ export async function requireRole(min: UserRole): Promise<AuthedUser> {
   return authed;
 }
 
-/**
- * Ensure the caller belongs to the given org, OR is `god`.
- * Useful for org-scoped routes.
- */
+// Ensures the caller belongs to the given org, or is `god`.
 export async function requireOrgAccess(orgId: string | null | undefined): Promise<AuthedUser> {
   const authed = await requireUser();
   if (authed.profile.role === "god") return authed;
@@ -114,22 +93,12 @@ export async function requireOrgAccess(orgId: string | null | undefined): Promis
   return authed;
 }
 
-/* ─── Ergonomic wrapper ──────────────────────────────────────── */
-
 type Handler<TArgs extends unknown[]> = (
   authed: AuthedUser,
   ...args: TArgs
 ) => Promise<Response> | Response;
 
-/**
- * Wrap a Route Handler body with automatic auth + AuthError → Response
- * conversion + generic error handling.
- *
- *   export const POST = withAuth(async (authed, req) => {
- *     const body = mySchema.parse(await req.json());
- *     ...
- *   });
- */
+// Wraps a route handler with auth + AuthError → Response conversion + error handling.
 export function withAuth<TArgs extends unknown[]>(
   handler: Handler<TArgs>,
   opts: { role?: UserRole } = {}
@@ -151,12 +120,16 @@ export function withAuth<TArgs extends unknown[]>(
   };
 }
 
-/* ─── IP extraction for audit logs ───────────────────────────── */
-
 export function getClientIp(req: Request): string | null {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]!.trim();
+  // x-real-ip is set by the hosting proxy and can't be spoofed by clients.
   const real = req.headers.get("x-real-ip");
   if (real) return real.trim();
+  // In x-forwarded-for only the LAST entry is appended by the trusted proxy;
+  // clients can prepend arbitrary values to defeat IP-keyed rate limits.
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) {
+    const parts = fwd.split(",");
+    return parts[parts.length - 1]!.trim();
+  }
   return null;
 }

@@ -1,12 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   /api/pages/[id] — read / update / delete a single page
-   ═══════════════════════════════════════════════════════════════
-   Reads use the user-scoped client (RLS = source of truth).
-   Writes resolve permission server-side via resolvePagePermission
-   to produce clean error messages, then go through the admin
-   client so we can include audit details.
-   ═══════════════════════════════════════════════════════════════ */
-
+// /api/pages/[id] — read/update/delete a single page. Writes resolve permission via resolvePagePermission, then use the admin client for audit details.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, getClientIp } from "@/lib/auth/require";
 import { createServerClient } from "@/lib/supabase/server";
@@ -29,8 +21,7 @@ async function loadPageForCaller(
   pageId: string,
   userId: string
 ): Promise<{ page: Page | null; share: PageShare | null }> {
-  // Always read through the admin client so we can compute the
-  // permission ourselves (and produce a precise 403/404 distinction).
+  // Admin client so we can compute permission ourselves for a precise 403/404.
   const admin = createAdminClient();
   const [{ data: page }, { data: share }] = await Promise.all([
     admin.from("pages").select("*").eq("id", pageId).maybeSingle(),
@@ -46,8 +37,6 @@ async function loadPageForCaller(
     share: (share as PageShare | null) ?? null,
   };
 }
-
-/* ─── GET ────────────────────────────────────────────────────── */
 
 export const GET = withAuth(async (authed, _req: NextRequest, ctx: RouteCtx) => {
   const { id } = await ctx.params;
@@ -76,8 +65,6 @@ export const GET = withAuth(async (authed, _req: NextRequest, ctx: RouteCtx) => 
 
   return NextResponse.json({ page, permission: perm satisfies PagePermission });
 });
-
-/* ─── PATCH ──────────────────────────────────────────────────── */
 
 export const PATCH = withAuth(
   async (authed, req: NextRequest, ctx: RouteCtx) => {
@@ -109,11 +96,9 @@ export const PATCH = withAuth(
       share,
     });
 
-    // Visibility / min_role / cover changes require full_access.
+    // Visibility / min_role changes require full_access; covers are content.
     const isVisibilityChange =
-      body.visibility !== undefined ||
-      body.min_role !== undefined ||
-      body.cover_url !== undefined;
+      body.visibility !== undefined || body.min_role !== undefined;
     const requires: PagePermission = isVisibilityChange
       ? "full_access"
       : "edit";
@@ -127,7 +112,7 @@ export const PATCH = withAuth(
     if (body.cover_url !== undefined) update.cover_url = body.cover_url;
     if (body.is_archived !== undefined) update.is_archived = body.is_archived;
     if (body.visibility !== undefined) {
-      // Personal pages (no org) can only be 'private' or 'public_link'.
+      // Personal pages (no org) can only be private or public_link.
       if (
         page.org_id === null &&
         body.visibility !== "private" &&
@@ -206,7 +191,7 @@ export const PATCH = withAuth(
   }
 );
 
-/* ─── DELETE ─────────────────────────────────────────────────── */
+// DELETE
 
 export const DELETE = withAuth(
   async (authed, req: NextRequest, ctx: RouteCtx) => {

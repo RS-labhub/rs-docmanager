@@ -243,7 +243,7 @@ export default function NewDocumentPage() {
             setUploading(false)
           } else {
             // Reuse the same file URL for subsequent org copies
-            await (supabase.from("documents") as any).update({
+            await supabase.from("documents").update({
               file_url: uploadedFileUrl,
               file_size: file.size,
             }).eq("id", docId)
@@ -252,7 +252,7 @@ export default function NewDocumentPage() {
         if (enablePassword && passwordCode.length === 9) {
           try { await fetch("/api/document-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ documentId: docId, password: passwordCode, userId: user.id }) }) } catch {}
         }
-        await supabase.from("audit_logs").insert({ user_id: user.id, org_id: orgId, action: "create", resource_type: "document", resource_id: docId, details: { title: title.trim(), mode, status, reviewers: Array.from(selectedReviewers), refs: Array.from(selectedRefs) } } as any)
+        await supabase.from("audit_logs").insert({ user_id: user.id, org_id: orgId, action: "create", resource_type: "document", resource_id: docId, details: { title: title.trim(), mode, status, reviewers: Array.from(selectedReviewers), refs: Array.from(selectedRefs) } })
       }
     }
     if (lastDocId) router.push("/dashboard/documents/" + lastDocId)

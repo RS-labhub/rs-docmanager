@@ -61,9 +61,7 @@ export const GET = withAuth(async (authed, req: NextRequest) => {
     const userIds = [...new Set((comments ?? []).map((c: any) => c.user_id))];
     let profiles: any[] = [];
     if (userIds.length > 0) {
-      // Admin client: we've already authorized the caller's access to
-      // the document; exposing commenter names/avatars on that document
-      // is intentional and RLS would block cross-user profile reads.
+      // Admin client: we've already authorized the caller's access to the document; exposing commenter names/avatars on that document is intentional and RLS would block cross-user profile reads.
       const admin = createAdminClient();
       const { data } = await admin
         .from("profiles")

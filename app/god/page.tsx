@@ -85,6 +85,7 @@ export default function GodPanelPage() {
   const [newOrgDesc, setNewOrgDesc] = useState("")
   const [newOrgCode, setNewOrgCode] = useState("")
   const [newAdminEmail, setNewAdminEmail] = useState("")
+  const [newAdminPassword, setNewAdminPassword] = useState("")
 
   // Delete Org state
   const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null)
@@ -101,7 +102,7 @@ export default function GodPanelPage() {
     
     setIsDeletingOrg(true)
     try {
-      const result = await deleteOrganization(orgToDelete.id, user.id)
+      const result = await deleteOrganization(orgToDelete.id)
       if (result.error) {
         alert(result.error)
       } else {
@@ -123,10 +124,13 @@ export default function GodPanelPage() {
     if (!user || user.role !== "god") return
     setIsCreatingOrg(true)
     try {
-      const result = await createOrgAndSuperAdmin(
-        { orgName: newOrgName, description: newOrgDesc, orgCode: newOrgCode, adminEmail: newAdminEmail },
-        user.id
-      )
+      const result = await createOrgAndSuperAdmin({
+        orgName: newOrgName,
+        description: newOrgDesc,
+        orgCode: newOrgCode,
+        adminEmail: newAdminEmail,
+        adminPassword: newAdminPassword,
+      })
       if (result.error) {
         alert(result.error)
       } else {
@@ -135,6 +139,7 @@ export default function GodPanelPage() {
         setNewOrgName("")
         setNewOrgDesc("")
         setNewOrgCode("")
+        setNewAdminPassword("")
         setNewAdminEmail("")
         // Refresh page
         window.location.reload()
@@ -371,6 +376,18 @@ export default function GodPanelPage() {
                         placeholder="admin@acme.com"
                         required
                       />
+                    <div className="space-y-2">
+                      <Label htmlFor="adminPassword">Super Admin Password *</Label>
+                      <Input
+                        id="adminPassword"
+                        type="password"
+                        value={newAdminPassword}
+                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                        placeholder="Min 12 characters"
+                        minLength={12}
+                        required
+                      />
+                    </div>
                     </div>
                     <DialogFooter>
                       <Button

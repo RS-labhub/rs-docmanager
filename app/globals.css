@@ -2,11 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ══════════════════════════════════════════════════════════════
-   AI DocManager — Clean Design System
-   Inspired by AutoSend / Minimal SaaS aesthetic
-   Font: Inter · Palette: Stone / Warm Neutrals
-   ══════════════════════════════════════════════════════════════ */
+/* AI DocManager design system — Inter font, stone/warm neutral palette. */
 
 @layer base {
   :root {
@@ -97,18 +93,18 @@
 }
 
 @layer components {
-  /* ─── Clean card ─────────────────────────────────────────── */
+  /* Clean card */
   .glass-card {
     @apply bg-card border border-border rounded-xl;
   }
 
-  /* ─── Dot pattern ───────────────────────────────────────── */
+  /* Dot pattern */
   .dot-bg {
     background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
-  /* ─── Grid background ──────────────────────────────────── */
+  /* Grid background */
   .grid-bg {
     background-image:
       linear-gradient(to right, hsl(var(--border) / 0.3) 1px, transparent 1px),
@@ -116,7 +112,7 @@
     background-size: 48px 48px;
   }
 
-  /* ─── Role badges ───────────────────────────────────────── */
+  /* Role badges */
   .badge-god {
     @apply bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900;
   }
@@ -131,7 +127,7 @@
   }
 }
 
-/* ─── Scrollbar ────────────────────────────────────────────── */
+/* Scrollbar */
 
 html {
   scrollbar-width: thin;
@@ -155,7 +151,7 @@ html {
   background: transparent;
 }
 
-/* ─── Animations ───────────────────────────────────────────── */
+/* Animations */
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -179,23 +175,15 @@ html {
 .stagger-children > *:nth-child(5) { animation-delay: 300ms; }
 .stagger-children > *:nth-child(6) { animation-delay: 375ms; }
 
-/* ─── Selection ────────────────────────────────────────────── */
+/* Selection */
 ::selection {
   background: hsl(var(--primary) / 0.2);
   color: inherit;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   BlockNote editor overrides
-   ───────────────────────────────────────────────────────────────
-   BlockNote ships CSS that relies on `attr(data-index)` inside a
-   CSS custom property to render numbered list numbers. That usage
-   of `attr()` is part of CSS Values L5 and is NOT yet supported in
-   current Chrome/Firefox, so the numbered-list marker collapses
-   to just ".". We work around it with CSS counters, which are
-   supported everywhere. We also re-assert bullet markers and
-   caption typography.
-   ═══════════════════════════════════════════════════════════════ */
+/* BlockNote editor overrides. BlockNote's numbered-list markers rely on
+   attr(data-index), which isn't supported in current Chrome/Firefox, so
+   we use CSS counters instead. Also re-asserts bullet markers/captions. */
 
 .blocknote-surface {
   counter-reset: bn-ol;
@@ -434,9 +422,8 @@ html {
   height: 12px;
 }
 
-/* ── Link hover overlay ───────────────────────────────────────
-   Lives on <body> as a portal. Shown by the enhancer on
-   mouseenter of an anchor inside the editor. */
+/* Link hover overlay. Lives on <body> as a portal; shown by the enhancer
+   on mouseenter of an anchor inside the editor. */
 .bn-link-overlay {
   position: absolute;
   z-index: 60;
@@ -480,11 +467,8 @@ html {
   display: none;
 }
 
-/* ── File-block "Open" link ──────────────────────────────────
-   Injected by `enhanceFileBlocks` for generic file embeds so
-   viewers can open the attachment in a new tab without leaving
-   the page. We slot it at the end of the filename row so the
-   icon + filename + open button read as a single attachment card. */
+/* File-block "Open" link, injected by enhanceFileBlocks so viewers can
+   open the attachment in a new tab. Slotted at the end of the filename row. */
 .blocknote-surface .bn-file-name-with-icon {
   align-items: center;
 }

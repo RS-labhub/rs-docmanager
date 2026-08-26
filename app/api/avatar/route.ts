@@ -53,7 +53,8 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
     const avatarUrl = urlData.publicUrl;
 
-    await (supabase.from("profiles") as any)
+    await supabase
+      .from("profiles")
       .update({ avatar_url: avatarUrl })
       .eq("id", authed.id);
 

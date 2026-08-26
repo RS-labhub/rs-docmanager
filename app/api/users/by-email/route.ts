@@ -1,13 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   GET /api/users/by-email?email=... — minimal directory lookup
-   ═══════════════════════════════════════════════════════════════
-   Used by the share dialog to translate an email into a user_id.
-   Security:
-   - Requires auth
-   - Returns ONLY users in the caller's org (god sees everyone)
-   - Rate-limited to discourage enumeration
-   ═══════════════════════════════════════════════════════════════ */
-
+// GET /api/users/by-email — resolves an email to a user_id for the share dialog. Requires auth, scoped to the caller's org (god sees all), rate-limited.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/require";
 import { createAdminClient } from "@/lib/supabase/admin";

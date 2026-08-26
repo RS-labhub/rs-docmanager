@@ -1,7 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   GET /api/pages/[id]/markdown — markdown export
-   ═══════════════════════════════════════════════════════════════ */
-
+// GET /api/pages/[id]/markdown — markdown export.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/auth/require";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -51,8 +48,7 @@ export const GET = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Prefer the cached markdown (written by the editor on save), fall
-  // back to a fresh render if the cache is empty.
+  // Prefer the cached markdown; fall back to a fresh render if empty.
   const md =
     typedPage.markdown_cache && typedPage.markdown_cache.trim().length > 0
       ? typedPage.markdown_cache
@@ -61,7 +57,7 @@ export const GET = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => {
   const heading = `# ${typedPage.title || "Untitled"}\n\n`;
   const body = md.startsWith("# ") ? md : heading + md;
 
-  // Sanitize title for filename (ASCII-safe, preserve readable chars).
+  // Sanitize title for use as a filename.
   const safeTitle = (typedPage.title || "page")
     .replace(/[^a-zA-Z0-9-_ ]+/g, "")
     .trim()

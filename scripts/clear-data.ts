@@ -1,9 +1,5 @@
-/**
- * Clear ALL data from Supabase tables
- * ⚠️  DESTRUCTIVE — This deletes all rows from every table!
- * Usage: bunx tsx scripts/clear-data.ts
- * With confirmation bypass: bunx tsx scripts/clear-data.ts --yes
- */
+// Clears ALL data from Supabase tables. DESTRUCTIVE.
+// Usage: bunx tsx scripts/clear-data.ts [--yes]
 import * as dotenv from "dotenv";
 import * as path from "path";
 import * as readline from "readline";
@@ -48,9 +44,7 @@ async function main() {
   const skipConfirm = process.argv.includes("--yes");
 
   console.log("");
-  console.log("========================================================");
   console.log("    AI DocManager — CLEAR ALL DATA");
-  console.log("========================================================");
   console.log("  Project: " + PROJECT_REF);
   console.log("");
   console.log("  ⚠️  WARNING: This will DELETE ALL DATA from:");
@@ -109,8 +103,7 @@ async function main() {
   let deleted = 0;
   let failed = 0;
 
-  // Step 1: Delete auth.users FIRST — this cascades to profiles →
-  // documents, document_comments, document_passwords, ai_api_keys, ai_agents, ai_actions, audit_logs
+  // Step 1: delete auth.users first — cascades to profiles and all child tables.
   console.log("  Step 1: Clearing Supabase Auth users (cascades to profiles & children)...\n");
   try {
     const authCountResult = await sql`SELECT COUNT(*) as cnt FROM auth.users`;

@@ -1,11 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   POST /api/pages/import — create a page from a markdown upload
-   ═══════════════════════════════════════════════════════════════
-   Accepts either:
-     • multipart/form-data with `file` (a .md upload)
-     • application/json: { title?, markdown, visibility? }
-   ═══════════════════════════════════════════════════════════════ */
-
+// POST /api/pages/import — create a page from a markdown upload. Accepts multipart/form-data with `file` (.md) or JSON { title?, markdown, visibility? }.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, getClientIp } from "@/lib/auth/require";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,9 +21,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
   const rl = await checkRateLimit("page-import", authed.id, 20, 300);
   if (rl) return rl;
 
-  // Callers without an org get a personal page. Personal pages can
-  // only be 'private' or 'public_link' (enforced by the pages CHECK
-  // constraint), so we default personal imports to 'private'.
+  // Callers without an org get a personal page, defaulting to private.
   const hasOrg = !!authed.profile.org_id;
 
   let title: string | undefined;
@@ -78,8 +69,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
     visibility = body.visibility;
   }
 
-  // Clamp visibility for personal pages: only 'private' or 'public_link'
-  // are allowed when there is no org.
+  // Personal pages (no org) can only be private or public_link.
   if (!hasOrg && visibility !== "private" && visibility !== "public_link") {
     visibility = "private";
   }

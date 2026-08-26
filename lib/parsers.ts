@@ -1,8 +1,4 @@
-/* ─────────────────────────────────────────────────────────────
-   Free Document Parsers — No API keys required
-   Supports: PDF, DOCX, TXT, CSV, Markdown, HTML
-   ───────────────────────────────────────────────────────────── */
-
+// Document parsers — no API keys required. Supports PDF, DOCX, TXT, CSV, Markdown, HTML.
 import mammoth from "mammoth";
 
 export type SupportedFileType =
@@ -27,9 +23,7 @@ export interface ParseResult {
   };
 }
 
-/**
- * Detect file type from extension.
- */
+// Detect file type from extension.
 export function detectFileType(filename: string): SupportedFileType | null {
   const ext = filename.split(".").pop()?.toLowerCase();
   const map: Record<string, SupportedFileType> = {
@@ -47,9 +41,7 @@ export function detectFileType(filename: string): SupportedFileType | null {
   return map[ext || ""] || null;
 }
 
-/**
- * Parse a file buffer into text content.
- */
+// Parse a file buffer into text content.
 export async function parseDocument(
   buffer: Buffer,
   filename: string
@@ -100,11 +92,7 @@ export async function parseDocument(
   };
 }
 
-/* ─── Individual Parsers ──────────────────────────────────── */
-
-/**
- * Parse PDF using pdf-parse library.
- */
+// Parse PDF using pdf-parse library.
 async function parsePdf(
   buffer: Buffer
 ): Promise<{ content: string; pageCount: number }> {
@@ -130,9 +118,7 @@ async function parsePdf(
   }
 }
 
-/**
- * Fallback PDF text extractor — scans buffer for text streams.
- */
+// Fallback PDF text extractor — scans buffer for text streams.
 function extractTextFromPdfBuffer(buffer: Buffer): string {
   const str = buffer.toString("latin1");
   const texts: string[] = [];
@@ -161,24 +147,18 @@ function extractTextFromPdfBuffer(buffer: Buffer): string {
   return texts.join(" ").replace(/\\n/g, "\n").replace(/\\\(/g, "(").replace(/\\\)/g, ")");
 }
 
-/**
- * Parse DOCX using mammoth.
- */
+// Parse DOCX using mammoth.
 async function parseDocx(buffer: Buffer): Promise<string> {
   const result = await mammoth.extractRawText({ buffer });
   return result.value;
 }
 
-/**
- * Parse plain text files (txt, md, csv, html, json).
- */
+// Parse plain text files (txt, md, csv, html, json).
 function parseText(buffer: Buffer): string {
   return buffer.toString("utf-8");
 }
 
-/**
- * Get human-readable supported formats.
- */
+// Get human-readable supported formats.
 export function getSupportedFormats(): string[] {
   return [
     "PDF (.pdf)",

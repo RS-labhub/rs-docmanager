@@ -1,23 +1,9 @@
--- ══════════════════════════════════════════════════════════════
---  DEPRECATED — do not run this file.
---
---  Seeding is now handled by the server at `POST /api/seed`
---  (see app/api/seed/route.ts). That route:
---    • Creates users via Supabase Auth (so passwords are handled
---      securely by Supabase, not by our code).
---    • Inserts profiles, organizations, documents, agents, etc.
---    • Refuses to run if any profile already exists.
---    • Requires the `x-seed-token` header matching `SEED_SECRET`.
---    • Refuses to run in production unless ALLOW_PROD_SEED=true.
---
---  To seed a fresh database:
---    curl -X POST http://localhost:3000/api/seed \
---         -H "x-seed-token: $SEED_SECRET"
--- ══════════════════════════════════════════════════════════════
--- ══════════════════════════════════════════════════════════════
---  Seed data — Run AFTER schema.sql
---  Passwords are hashed with bcrypt (plaintext: "Password123!")
--- ══════════════════════════════════════════════════════════════
+-- DEPRECATED — do not run this file. Seeding is now handled by the server
+-- at POST /api/seed (see app/api/seed/route.ts), which creates users via
+-- Supabase Auth, inserts profiles/orgs/documents/agents, and refuses to
+-- run if a profile already exists or (in production) unless
+-- ALLOW_PROD_SEED=true. To seed a fresh database:
+--   curl -X POST http://localhost:3000/api/seed -H "x-seed-token: $SEED_SECRET"
 
 -- Organizations
 INSERT INTO organizations (id, name, slug, org_code, description) VALUES
@@ -87,8 +73,7 @@ INSERT INTO credentials (user_id, password_hash) VALUES
   ('40000000-0000-0000-0000-000000000003', '$2a$12$LJ3a7lFzT4bR4Y5Y5Y5Y5O5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5u'),
   ('40000000-0000-0000-0000-000000000004', '$2a$12$LJ3a7lFzT4bR4Y5Y5Y5Y5O5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5Y5u');
 
--- NOTE: The hashes above are placeholders. Run the seed script at /api/seed
--- to generate proper bcrypt hashes for "Password123!"
+-- NOTE: The hashes above are placeholders. Run the seed script at /api/seed to generate proper bcrypt hashes for "Password123!"
 
 -- AI Agents
 INSERT INTO ai_agents (id, name, description, role, capabilities, org_id, created_by, is_active) VALUES

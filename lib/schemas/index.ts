@@ -1,19 +1,11 @@
-/* ═══════════════════════════════════════════════════════════════
-   Zod schemas for request validation
-   ═══════════════════════════════════════════════════════════════
-   All API routes parse bodies/queries through one of these. No
-   route should consume raw `req.json()` output without validation.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Zod schemas for request validation. All API routes should parse
+// bodies/queries through one of these instead of raw req.json().
 import { z } from "zod";
-
-/* ─── Primitives ─────────────────────────────────────────────── */
 
 export const uuid = z.string().uuid();
 export const email = z.string().email().max(254).toLowerCase().trim();
 
-/* ─── Auth ───────────────────────────────────────────────────── */
-
+// Auth
 export const loginSchema = z.object({
   email,
   password: z.string().min(8).max(128),
@@ -32,8 +24,7 @@ export const registerSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
 });
 
-/* ─── Documents ──────────────────────────────────────────────── */
-
+// Documents
 export const createDocumentSchema = z.object({
   title: z.string().min(1).max(300).trim(),
   content: z.string().max(2_000_000).default(""),
@@ -51,16 +42,14 @@ export const reparseDocumentSchema = z.object({
   documentId: uuid,
 });
 
-/* ─── Document comments ──────────────────────────────────────── */
-
+// Document comments
 export const createCommentSchema = z.object({
   documentId: uuid,
   content: z.string().min(1).max(4000).trim(),
   parentId: uuid.optional().nullable(),
 });
 
-/* ─── Document passwords ─────────────────────────────────────── */
-
+// Document passwords
 export const setDocumentPasswordSchema = z.object({
   documentId: uuid,
   password: z.string().regex(/^\d{9}$/, "Password must be exactly 9 digits"),
@@ -71,8 +60,7 @@ export const verifyDocumentPasswordSchema = z.object({
   password: z.string().regex(/^\d{9}$/),
 });
 
-/* ─── AI keys ────────────────────────────────────────────────── */
-
+// AI keys
 export const aiProvider = z.enum(["groq", "openai", "anthropic"]);
 
 export const createAiKeySchema = z.object({
@@ -81,8 +69,7 @@ export const createAiKeySchema = z.object({
   label: z.string().max(100).optional(),
 });
 
-/* ─── AI actions ─────────────────────────────────────────────── */
-
+// AI actions
 export const aiActionSchema = z.object({
   action: z.enum([
     "summarize",
@@ -102,8 +89,7 @@ export const aiActionSchema = z.object({
   question: z.string().max(2000).optional(),
 });
 
-/* ─── Uploads ────────────────────────────────────────────────── */
-
+// Uploads
 export const uploadDocumentQuerySchema = z.object({
   documentId: uuid.optional(),
 });
@@ -112,8 +98,7 @@ export const documentFileQuerySchema = z.object({
   documentId: uuid,
 });
 
-/* ─── Pages ──────────────────────────────────────────────────── */
-
+// Pages
 export const pageVisibilitySchema = z.enum([
   "private",
   "org",
@@ -131,12 +116,7 @@ export const pagePermissionSchema = z.enum([
 
 export const userRoleSchema = z.enum(["god", "super_admin", "admin", "user"]);
 
-/**
- * BlockNote document — opaque on the server. We bound size and
- * shape: an array of objects, max 10MB serialized. The editor
- * owns the schema; the server doesn't try to validate block
- * contents (would couple us to a specific BlockNote version).
- */
+// BlockNote document — opaque on the server; we only bound size/shape.
 export const blockTreeSchema = z
   .array(z.unknown())
   .max(5000, "Page is too large");

@@ -61,9 +61,7 @@ const SheetContent = React.forwardRef<
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
-      // Explicitly pass `aria-describedby={undefined}` as the default to
-      // silence Radix's "Missing Description or aria-describedby" warning
-      // when a caller hasn't supplied one. Callers can still override it.
+      // Silences Radix's "Missing Description" warning by default; callers can override.
       aria-describedby={undefined}
       className={cn(sheetVariants({ side }), className)}
       {...props}

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { isAtLeast, outranks, getRoleInfo } from "@/lib/permissions"
 import { createClient } from "@/lib/supabase/client"
+import { approveUser, rejectUser, updateUserRole, toggleUserActive } from "@/app/actions/admin"
 import type { Profile, UserRole } from "@/lib/supabase/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,97 +62,58 @@ export default function UsersPage() {
     load()
   }, [user])
 
+  // All privileged writes go through server actions, which re-check
+  // role/org authority server-side; the UI checks are only for UX.
   const handleApprove = async (targetUser: Profile) => {
     if (!user) return
     setActionLoading(targetUser.id)
-    const supabase = createClient()
-    await (supabase.from("profiles") as any)
-      .update({ approval_status: "approved" })
-      .eq("id", targetUser.id)
-
-    await (supabase.from("audit_logs") as any).insert({
-      user_id: user.id,
-      org_id: user.org_id,
-      action: "approve_membership",
-      resource_type: "user",
-      resource_id: targetUser.id,
-      details: { email: targetUser.email },
-    })
-
-    setUsers((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, approval_status: "approved" as const } : u))
-    )
+    const result = await approveUser(targetUser.id)
+    if (result.success) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, approval_status: "approved" as const } : u))
+      )
+    }
     setActionLoading(null)
   }
 
   const handleReject = async (targetUser: Profile) => {
     if (!user) return
     setActionLoading(targetUser.id)
-    const supabase = createClient()
-    await (supabase.from("profiles") as any)
-      .update({ approval_status: "rejected" })
-      .eq("id", targetUser.id)
-
-    await (supabase.from("audit_logs") as any).insert({
-      user_id: user.id,
-      org_id: user.org_id,
-      action: "reject_membership",
-      resource_type: "user",
-      resource_id: targetUser.id,
-      details: { email: targetUser.email },
-    })
-
-    setUsers((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, approval_status: "rejected" as const } : u))
-    )
+    const result = await rejectUser(targetUser.id)
+    if (result.success) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, approval_status: "rejected" as const } : u))
+      )
+    }
     setActionLoading(null)
   }
 
   const handleRoleChange = async (targetUser: Profile, newRole: UserRole) => {
     if (!user) return
-    // Can't change own role, can't promote beyond own level
     if (targetUser.id === user.id) return
     if (!outranks(user.role, targetUser.role)) return
-    // Only god and super_admin can change roles
-    if (user.role !== "god" && user.role !== "super_admin") return
-    // Super admins cannot assign god role
-    if (user.role === "super_admin" && newRole === "god") return
 
-    const supabase = createClient()
-    await (supabase.from("profiles") as any)
-      .update({ role: newRole })
-      .eq("id", targetUser.id)
-
-    // Log it
-    await (supabase.from("audit_logs") as any).insert({
-      user_id: user.id,
-      org_id: user.org_id,
-      action: "role_change",
-      resource_type: "user",
-      resource_id: targetUser.id,
-      details: { from: targetUser.role, to: newRole },
-    })
-
-    setUsers((prev) =>
-      prev.map((u) => (u.id === targetUser.id ? { ...u, role: newRole } : u))
-    )
+    const result = await updateUserRole(targetUser.id, newRole)
+    if (result.success) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, role: newRole } : u))
+      )
+    }
   }
 
   const handleToggleActive = async (targetUser: Profile) => {
     if (!user || targetUser.id === user.id) return
     if (!outranks(user.role, targetUser.role)) return
 
-    const supabase = createClient()
     const newActive = !targetUser.is_active
-    await (supabase.from("profiles") as any)
-      .update({ is_active: newActive })
-      .eq("id", targetUser.id)
-
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === targetUser.id ? { ...u, is_active: newActive } : u
+    const result = await toggleUserActive(targetUser.id, newActive)
+    if (result.success) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === targetUser.id ? { ...u, is_active: newActive } : u
+        )
       )
-    )
+    }
   }
 
   const filtered = users.filter(

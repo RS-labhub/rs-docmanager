@@ -31,15 +31,7 @@ function slugify(t: string) {
   return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-/**
- * GitHub-style markdown tables require the header, separator, and
- * body rows to be contiguous lines — any blank line between them
- * breaks the table. Some sources (pasted from Notion / Confluence)
- * include blank lines between every row, so remark-gfm silently
- * falls back to rendering them as stray paragraphs with pipe
- * characters. Collapse those internal blank lines here so the
- * GFM parser sees a single well-formed table.
- */
+// Collapses blank lines between markdown table rows so remark-gfm doesn't break on tables pasted from Notion/Confluence.
 function normalizeMarkdownTables(src: string): string {
   const lines = src.replace(/\r\n/g, "\n").split("\n");
   const isTableRow = (s: string) => /^\s*\|.*\|\s*$/.test(s);
@@ -47,16 +39,9 @@ function normalizeMarkdownTables(src: string): string {
   for (let i = 0; i < lines.length; i++) {
     out.push(lines[i]);
     if (!isTableRow(lines[i])) continue;
-    // Skip over blank lines that sit between consecutive table
-    // rows. The row we just pushed becomes the "anchor" and any
-    // number of empty lines followed by another table row gets
-    // stitched back together.
     let j = i + 1;
     while (j < lines.length && lines[j].trim() === "") j++;
     if (j < lines.length && isTableRow(lines[j])) {
-      // Drop the blanks by fast-forwarding the outer loop past
-      // them — the next iteration picks up at the neighbouring
-      // table row.
       i = j - 1;
     }
   }
@@ -64,7 +49,7 @@ function normalizeMarkdownTables(src: string): string {
 }
 
 interface DocsViewProps {
-  /** Slug from the URL (e.g. /docs/<slug>). When null, renders the first doc. */
+  // Slug from the URL (e.g. /docs/<slug>). When null, renders the first doc.
   initialSlug?: string | null;
 }
 
@@ -138,9 +123,7 @@ export default function DocsView({ initialSlug = null }: DocsViewProps) {
   }, []);
 
   const activeDoc = useMemo(() => docs.find(d => d.slug === activeSlug), [docs, activeSlug]);
-  // Pre-normalise the markdown so edge cases (e.g. tables with blank
-  // lines between rows) render correctly without forcing every doc
-  // author to hand-format their source.
+  // Pre-normalise the markdown so edge cases (e.g. tables with blank lines between rows) render correctly without forcing every doc author to hand-format their source.
   const activeDocMarkdown = useMemo(
     () => (activeDoc ? normalizeMarkdownTables(activeDoc.content) : ""),
     [activeDoc],
@@ -516,9 +499,7 @@ export default function DocsView({ initialSlug = null }: DocsViewProps) {
                             </a>
                           );
                         }
-                        // Cross-doc link — either another doc slug (e.g. "pages.md",
-                        // "roles.md#section") or a docs-root link ("/docs/pages",
-                        // "/docs#pages").
+                        // Cross-doc link — either another doc slug (e.g. "pages.md", "roles.md#section") or a docs-root link ("/docs/pages", "/docs#pages").
                         const crossDocMatch =
                           raw.match(/^\/docs(?:\/|#)?([a-z0-9-]+)?(?:#([a-z0-9-]+))?$/i) ||
                           raw.match(/^([a-z0-9-]+)\.md(?:#([a-z0-9-]+))?$/i);

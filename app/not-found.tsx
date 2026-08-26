@@ -9,16 +9,7 @@ import {
   Search,
 } from "lucide-react"
 
-/* ═══════════════════════════════════════════════════════════════
-   Global 404 page
-   ═══════════════════════════════════════════════════════════════
-   Next.js renders this for any unmatched route. It is intentionally
-   a server component (no "use client") so it stays fast and lean.
-   The gradient blobs and grid background echo the landing page
-   visual language, but the layout stays compact so it never
-   pushes the viewport to scroll on small screens.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Global 404 page for any unmatched route.
 export default function NotFound() {
   return (
     <div className="relative min-h-[calc(100vh-3.5rem)] flex items-center justify-center overflow-hidden px-4 py-16">

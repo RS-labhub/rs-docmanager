@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { withAuth } from "@/lib/auth/require";
+import { hasValidUnlock } from "@/lib/document-unlock";
 import { documentFileQuerySchema } from "@/lib/schemas";
 import { ZodError } from "zod";
 
@@ -19,7 +20,7 @@ export const GET = withAuth(async (authed, req: NextRequest) => {
 
     const { data: doc, error: docError } = await supabase
       .from("documents")
-      .select("file_url, file_type, org_id, owner_id, is_public")
+      .select("file_url, file_type, org_id, owner_id, is_public, is_password_protected")
       .eq("id", documentId)
       .single();
 
@@ -30,8 +31,7 @@ export const GET = withAuth(async (authed, req: NextRequest) => {
       );
     }
 
-    // Authorization: god bypass, else same-org; private docs further restricted to
-    // owner + admin+.
+    // Authorization: god bypass, else same-org; private docs further restricted to owner + admin+.
     if (authed.profile.role !== "god") {
       if (doc.org_id !== authed.profile.org_id) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,15 +45,28 @@ export const GET = withAuth(async (authed, req: NextRequest) => {
       }
     }
 
+    // Password-protected files require a server-side unlock (owner and god exempt).
+    if (
+      doc.is_password_protected &&
+      doc.owner_id !== authed.id &&
+      authed.profile.role !== "god"
+    ) {
+      const unlocked = await hasValidUnlock(documentId, authed.id);
+      if (!unlocked) {
+        return NextResponse.json(
+          { error: "Document is password protected" },
+          { status: 403 }
+        );
+      }
+    }
+
     const urlParts = doc.file_url.split("/documents/");
     if (urlParts.length < 2) {
       return NextResponse.json({ error: "Invalid file URL" }, { status: 400 });
     }
     const storagePath = urlParts[1];
 
-    // The `documents` bucket is private and storage-RLS-locked to service_role.
-    // Access is gated by the ACL checks above; we only reach this line after
-    // confirming the caller may read the document.
+    // Private bucket, locked to service_role; ACL already checked above.
     const admin = createAdminClient();
     const { data: fileData, error: downloadError } = await admin.storage
       .from("documents")

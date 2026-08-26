@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { isAtLeast } from "@/lib/permissions"
 import { createClient } from "@/lib/supabase/client"
+import { getDocument } from "@/app/actions/documents"
 import type { Document, DocumentComment } from "@/lib/supabase/types"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -127,12 +128,8 @@ export default function DocumentDetailPage() {
   useEffect(() => {
     if (!id) return
     const load = async () => {
-      const supabase = createClient()
-      const { data } = (await supabase
-        .from("documents")
-        .select("*")
-        .eq("id", id)
-        .single()) as { data: Document | null }
+      // Server action so password-protected content is redacted until unlocked.
+      const data = await getDocument(id)
       if (data) {
         setDoc(data)
         setEditedContent(data.content)
@@ -168,7 +165,7 @@ export default function DocumentDetailPage() {
       const res = await fetch("/api/document-comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: id, userId: user.id, content: newComment.trim() }),
+        body: JSON.stringify({ documentId: id, content: newComment.trim() }),
       })
       if (res.ok) {
         setNewComment("")
@@ -182,7 +179,7 @@ export default function DocumentDetailPage() {
   const deleteComment = async (commentId: string) => {
     if (!user) return
     try {
-      await fetch(`/api/document-comments?commentId=${commentId}&userId=${user.id}&userRole=${user.role}`, { method: "DELETE" })
+      await fetch(`/api/document-comments?commentId=${commentId}`, { method: "DELETE" })
       await loadComments()
     } catch { /* silent */ }
   }
@@ -191,7 +188,7 @@ export default function DocumentDetailPage() {
     if (!doc) return
     setSaving(true)
     const supabase = createClient()
-    await (supabase.from("documents") as any).update({ content: editedContent }).eq("id", doc.id)
+    await supabase.from("documents").update({ content: editedContent }).eq("id", doc.id)
     setDoc({ ...doc, content: editedContent })
     setEditing(false)
     setSaving(false)
@@ -203,7 +200,7 @@ export default function DocumentDetailPage() {
       const res = await fetch("/api/delete-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: doc.id, userId: user.id, userRole: user.role }),
+        body: JSON.stringify({ documentId: doc.id }),
       })
       if (!res.ok) {
         const err = await res.json()
@@ -219,16 +216,18 @@ export default function DocumentDetailPage() {
   const handleStatusChange = async (newStatus: string) => {
     if (!doc || !user) return
     const supabase = createClient()
-    // Update this document
-    await (supabase.from("documents") as any).update({ status: newStatus }).eq("id", doc.id)
-    // If god, also update all copies (same title + owner) across orgs
+    const status = newStatus as Document["status"]
+    await supabase.from("documents").update({ status }).eq("id", doc.id)
+    // God propagates status to distributed copies: same title, owner, and content.
     if (user.role === "god") {
-      await (supabase.from("documents") as any)
-        .update({ status: newStatus })
+      await supabase
+        .from("documents")
+        .update({ status })
         .eq("title", doc.title)
         .eq("owner_id", doc.owner_id)
+        .eq("content", doc.content)
     }
-    setDoc({ ...doc, status: newStatus as any })
+    setDoc({ ...doc, status })
   }
 
   const handleAiAction = async () => {
@@ -237,7 +236,7 @@ export default function DocumentDetailPage() {
     setAiResult("")
     try {
       const body: Record<string, string> = {
-        action: aiAction, content: doc.content, user_id: user.id, title: doc.title,
+        action: aiAction, content: doc.content, title: doc.title,
       }
       if (aiAction === "qa" && qaQuestion.trim()) body.question = qaQuestion.trim()
       const res = await fetch("/api/ai/actions", {
@@ -270,7 +269,7 @@ export default function DocumentDetailPage() {
         const res = await fetch("/api/document-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId: doc!.id, password: passwordCode, userId: user!.id }),
+          body: JSON.stringify({ documentId: doc!.id, password: passwordCode }),
         })
         if (res.ok) {
           setDoc({ ...doc!, is_password_protected: true })
@@ -289,16 +288,20 @@ export default function DocumentDetailPage() {
         if (res.ok) {
           const data = await res.json()
           if (data.valid) {
+            // The unlock cookie is now set; re-fetch to get unredacted content.
+            const fresh = await getDocument(doc!.id)
+            if (fresh) {
+              setDoc(fresh)
+              setEditedContent(fresh.content)
+            }
             setIsUnlocked(true)
             setPasswordDialogOpen(false)
             setPasswordCode("")
           } else { setPasswordError("Incorrect password") }
         }
       } else if (passwordAction === "remove") {
-        const res = await fetch("/api/document-password", {
+        const res = await fetch(`/api/document-password?documentId=${doc!.id}`, {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documentId: doc!.id, userId: user!.id }),
         })
         if (res.ok) {
           setDoc({ ...doc!, is_password_protected: false })

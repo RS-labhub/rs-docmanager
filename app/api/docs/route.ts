@@ -74,8 +74,7 @@ export async function GET(request: NextRequest) {
     for (const file of files) {
       const filePath = path.join(docsDir, file);
       const raw = fs.readFileSync(filePath, "utf-8");
-      // Strip BOM and normalize line endings so Windows (CRLF) and Unix (LF)
-      // files are treated identically by downstream parsers.
+      // Strip BOM and normalize line endings so Windows (CRLF) and Unix (LF) files are treated identically by downstream parsers.
       const content = raw.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
       const slug = file.replace(".md", "");
       const title = extractTitle(content);

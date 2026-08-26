@@ -31,11 +31,7 @@ import { headers } from "next/headers";
 import { ZodError } from "zod";
 import { z } from "zod";
 
-/**
- * Best-effort client IP for rate-limiting server actions. Server
- * actions don't get a Request object, but the incoming request's
- * headers are forwarded by Next.
- */
+// Best-effort client IP for rate-limiting server actions (headers are forwarded by Next).
 async function serverActionIp(): Promise<string> {
   try {
     const h = await headers();
@@ -47,12 +43,7 @@ async function serverActionIp(): Promise<string> {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Admin server actions — identity, role and org always derived
-   from the authenticated session. Client arguments only describe
-   *what* to change, never *who* is changing it.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Admin server actions — identity, role and org are always derived from the authenticated session; client arguments only describe what to change.
 function errorResult(err: unknown, fallback = "An error occurred") {
   if (err instanceof AuthError) {
     const status = err.response.status;
@@ -66,7 +57,7 @@ function errorResult(err: unknown, fallback = "An error occurred") {
   return { success: false, error: fallback };
 }
 
-/** Generate a random 8-character alphanumeric organization code */
+// Generates a random 8-character alphanumeric organization code.
 function generateOrgCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -75,10 +66,6 @@ function generateOrgCode(): string {
   }
   return code;
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   Organizations
-   ═══════════════════════════════════════════════════════════════ */
 
 export async function getOrganizations(): Promise<Organization[]> {
   try {
@@ -243,10 +230,6 @@ export async function deleteOrganization(
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Users / Profiles
-   ═══════════════════════════════════════════════════════════════ */
-
 export async function getUsers(orgId?: string): Promise<Profile[]> {
   try {
     const authed = await requireRole("admin");
@@ -336,8 +319,7 @@ export async function createUser(
     const authed = await requireRole("admin");
     const parsed = createUserSchema.parse(payload);
 
-    // Non-god users: can only create users in their own org, and cannot
-    // create users with a role >= their own.
+    // Non-god users: can only create users in their own org, and cannot create users with a role >= their own.
     if (authed.profile.role !== "god") {
       if (parsed.org_id !== authed.profile.org_id) {
         return { success: false, error: "Cannot create users in other organizations" };
@@ -602,10 +584,6 @@ export async function deleteUser(
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Audit logs
-   ═══════════════════════════════════════════════════════════════ */
-
 export async function getAuditLogs(orgId?: string, limit = 100) {
   try {
     const authed = await requireRole("admin");
@@ -631,10 +609,6 @@ export async function getAuditLogs(orgId?: string, limit = 100) {
     return [];
   }
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   Stats
-   ═══════════════════════════════════════════════════════════════ */
 
 export async function getOrgStats(orgId: string) {
   try {
@@ -682,10 +656,6 @@ export async function getGlobalStats() {
     return { orgCount: 0, userCount: 0, documentCount: 0, agentCount: 0 };
   }
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   Membership approval
-   ═══════════════════════════════════════════════════════════════ */
 
 export async function getPendingUsers(orgId?: string): Promise<Profile[]> {
   try {
@@ -813,8 +783,7 @@ export async function rejectUser(
 export async function getOrganizationByCode(
   orgCode: string
 ): Promise<Organization | null> {
-  // Public-ish: called by register/join flows. Rate-limit aggressively
-  // to prevent org-code enumeration.
+  // Public-ish: called by register/join flows. Rate-limit aggressively to prevent org-code enumeration.
   try {
     // 20 probes per IP per hour.
     const ip = await serverActionIp();
@@ -828,8 +797,7 @@ export async function getOrganizationByCode(
       .regex(/^[A-Z0-9]{4,16}$/)
       .parse(orgCode);
 
-    // Use admin client because unauthenticated callers may use this on
-    // the pre-join flow. Only return minimal non-sensitive fields.
+    // Use admin client because unauthenticated callers may use this on the pre-join flow. Only return minimal non-sensitive fields.
     const admin = createAdminClient();
     const { data } = await admin
       .from("organizations")
@@ -876,10 +844,7 @@ export async function regenerateOrgCode(
   }
 }
 
-/**
- * The calling user joins an org by code. Identity is derived from
- * the session; the client no longer supplies a userId.
- */
+// The caller joins an org by code; identity comes from the session, not the client.
 export async function joinOrganization(
   orgCode: string
 ): Promise<{ success: boolean; error?: string; orgName?: string }> {
@@ -906,8 +871,7 @@ export async function joinOrganization(
       return { success: false, error: "You already belong to an organization." };
     }
 
-    // Admin client used here because RLS on organizations does not
-    // permit cross-org reads; the code itself is the secret.
+    // Admin client used here because RLS on organizations does not permit cross-org reads; the code itself is the secret.
     const admin = createAdminClient();
     const { data: org } = await admin
       .from("organizations")

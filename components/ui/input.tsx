@@ -12,9 +12,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
-        // Browser password managers / autofill extensions inject
-        // attributes like `fdprocessedid` on inputs before hydration
-        // completes, causing benign mismatch warnings. Suppress them.
+        // Suppress benign fdprocessedid mismatch from autofill extensions.
         suppressHydrationWarning
         {...props}
       />

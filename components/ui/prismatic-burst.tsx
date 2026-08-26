@@ -1,11 +1,6 @@
 "use client"
 
-/**
- * PrismaticBurst Component
- * A high-performance WebGL background effect using OGL.
- * Features customizable rays, colors, and 3D rotation animations.
- */
-
+// WebGL background effect (OGL) with customizable rays, colors, and 3D rotation.
 import React, { useEffect, useRef } from 'react'
 import { Renderer, Program, Mesh, Triangle, Texture } from 'ogl'
 
@@ -24,6 +19,8 @@ export interface PrismaticBurstProps {
   rayCount?: number
   mixBlendMode?: React.CSSProperties['mixBlendMode'] | 'none'
   className?: string
+  // Render-buffer scale (0-1). Lower = faster; canvas is CSS-upscaled.
+  resolutionScale?: number
 }
 
 const vertexShader = `#version 300 es
@@ -222,6 +219,7 @@ export function PrismaticBurst({
   rayCount = 24,
   mixBlendMode = 'lighten',
   className = '',
+  resolutionScale = 0.6,
 }: PrismaticBurstProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const programRef = useRef<Program | null>(null)
@@ -246,8 +244,11 @@ export function PrismaticBurst({
     const container = containerRef.current
     if (!container) return
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    const renderer = new Renderer({ dpr, alpha: true, antialias: false })
+    // Render at reduced resolution — the ray-march shader is ~44 iterations
+    // per fragment, so full-DPR rendering stalls the main thread on large heroes.
+    const scale = Math.min(Math.max(resolutionScale, 0.25), 1)
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * scale
+    const renderer = new Renderer({ dpr, alpha: true, antialias: false, powerPreference: 'high-performance' })
     rendererRef.current = renderer
     const gl = renderer.gl
     gl.clearColor(0, 0, 0, 0)
@@ -304,13 +305,8 @@ export function PrismaticBurst({
       program.uniforms.uResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight]
     }
 
-    let ro: ResizeObserver | null = null
-    if ('ResizeObserver' in window) {
-      ro = new ResizeObserver(resize)
-      ro.observe(container)
-    } else {
-      window.addEventListener('resize', resize)
-    }
+    const ro = new ResizeObserver(resize)
+    ro.observe(container)
     resize()
 
     const onPointer = (e: PointerEvent) => {
@@ -332,21 +328,26 @@ export function PrismaticBurst({
       io.observe(container)
     }
 
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
     let raf = 0
     let last = performance.now()
     let accumTime = 0
+    // Cap at ~30fps — half the GPU/main-thread cost, visually indistinguishable for a bg.
+    const minFrameMs = 1000 / 30
+    let lastRender = 0
 
     const update = (now: number) => {
+      raf = requestAnimationFrame(update)
       const dt = Math.max(0, now - last) * 0.001
       last = now
 
       const visible = isVisibleRef.current && !document.hidden
-      if (!pausedRef.current) accumTime += dt
+      if (!visible) return
+      if (now - lastRender < minFrameMs) return
+      lastRender = now
 
-      if (!visible) {
-        raf = requestAnimationFrame(update)
-        return
-      }
+      if (!pausedRef.current && !reducedMotion) accumTime += dt
 
       const tau = 0.02 + Math.max(0, Math.min(1, hoverDampRef.current)) * 0.5
       const alpha = 1 - Math.exp(-dt / tau)
@@ -359,15 +360,13 @@ export function PrismaticBurst({
       program.uniforms.uTime.value = accumTime
 
       renderer.render({ scene: meshRef.current! })
-      raf = requestAnimationFrame(update)
     }
     raf = requestAnimationFrame(update)
 
     return () => {
       cancelAnimationFrame(raf)
       container.removeEventListener('pointermove', onPointer)
-      ro?.disconnect()
-      if (!ro) window.removeEventListener('resize', resize)
+      ro.disconnect()
       io?.disconnect()
       try {
         if (container && gl.canvas) container.removeChild(gl.canvas)

@@ -1,8 +1,4 @@
-/* ─────────────────────────────────────────────────────────────
-   AES-256-GCM Encryption for API Keys
-   Production-grade: uses unique IV + auth tag per encryption
-   ───────────────────────────────────────────────────────────── */
-
+// AES-256-GCM encryption for API keys — unique IV + auth tag per encryption.
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
@@ -29,16 +25,11 @@ function getEncryptionKey(): Buffer {
   return _cachedKey;
 }
 
-/**
- * Validate the ENCRYPTION_KEY at module load time so misconfiguration
- * fails fast instead of on the first encrypt/decrypt call. Skipped in
- * test environments to allow mocked flows.
- */
+// Validate the key at load time so misconfiguration fails fast (skipped in tests).
 if (process.env.NODE_ENV !== "test" && typeof process.env.ENCRYPTION_KEY === "string") {
   try {
     getEncryptionKey();
   } catch (err) {
-    // Re-throw with a clearer message so start-up fails loudly.
     throw new Error(`[encryption] Invalid ENCRYPTION_KEY: ${(err as Error).message}`);
   }
 }
@@ -49,10 +40,7 @@ export interface EncryptedPayload {
   auth_tag: string;        // hex-encoded auth tag
 }
 
-/**
- * Encrypt a plaintext API key using AES-256-GCM.
- * Returns encrypted data with IV and auth tag for safe DB storage.
- */
+// Encrypt a plaintext API key with AES-256-GCM; returns IV + auth tag for DB storage.
 export function encryptApiKey(plaintext: string): EncryptedPayload {
   const key = getEncryptionKey();
   const iv = randomBytes(IV_LENGTH);
@@ -72,10 +60,7 @@ export function encryptApiKey(plaintext: string): EncryptedPayload {
   };
 }
 
-/**
- * Decrypt an API key from its encrypted payload.
- * Verifies the auth tag to prevent tampering.
- */
+// Decrypt an API key; the auth tag check rejects tampered ciphertext.
 export function decryptApiKey(payload: EncryptedPayload): string {
   const key = getEncryptionKey();
   const iv = Buffer.from(payload.iv, "hex");
@@ -92,10 +77,7 @@ export function decryptApiKey(payload: EncryptedPayload): string {
   return decrypted;
 }
 
-/**
- * Generate a new random encryption key (for initial setup).
- * Run: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
- */
+// Generate a random 32-byte hex key for initial setup.
 export function generateEncryptionKey(): string {
   return randomBytes(32).toString("hex");
 }

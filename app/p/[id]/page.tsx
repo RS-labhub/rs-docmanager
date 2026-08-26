@@ -1,13 +1,6 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   Public page view — anonymous, read-only.
-   Served from /p/<id>. The proxy whitelists this path + the
-   /api/pages/<id>/public JSON endpoint so visitors don't need to
-   be logged in. The server only returns a page when its
-   visibility is exactly 'public_link'; everything else 404s.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Public, anonymous read-only page view served from /p/<id>.
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import dynamic from "next/dynamic"
@@ -52,9 +45,8 @@ export default function PublicPageView() {
     const load = async () => {
       setLoading(true)
       try {
+        // No credentials — this endpoint is public.
         const res = await fetch(`/api/pages/${id}/public`, {
-          // No credentials on purpose — this endpoint is public and
-          // we don't want to accidentally elevate to an auth context.
           credentials: "omit",
         })
         if (!res.ok) {

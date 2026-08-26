@@ -104,9 +104,8 @@ export default function Home() {
       <div className="relative">
         {/* Hero */}
         <section className="relative py-20 md:py-32 lg:py-40 overflow-hidden dark:bg-[#05050a]">
-          {/* Light mode: original grid + gradient backdrop (unchanged) */}
-          <div className="absolute inset-0 grid-bg opacity-40 dark:hidden" />
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background dark:hidden" />
+          {/* Light mode: plain white surface */}
+          <div className="absolute inset-0 z-0 bg-background dark:hidden" />
 
           {/* Dark mode: WebGL Prismatic Burst backdrop (only mounted in dark) */}
           <div className="absolute inset-0 z-0 hidden dark:block">
@@ -129,15 +128,13 @@ export default function Home() {
           <div className="container mx-auto px-4 flex flex-col items-center text-center max-w-4xl relative z-10">
             <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/50 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground mb-6 animate-fade-in dark:border-white/15 dark:bg-white/5 dark:text-white/80">
               <span className="relative flex h-2 w-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
               </span>
-              <span className="sm:hidden">R&apos;s Document Manager</span>
-              <span className="hidden sm:inline">R&apos;s DocManager &mdash; Enterprise AI Document Management</span>
+              Rohan Sharma presents
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[1.05] animate-fade-in">
-              <span className="bg-gradient-to-br from-foreground via-foreground/90 to-foreground/70 bg-clip-text dark:from-white dark:via-white/90 dark:to-white/70 dark:text-transparent">
+              <span className="bg-gradient-to-br from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent dark:from-white dark:via-white/90 dark:to-white/70">
                 Intelligent documents.
               </span>
               <br />
@@ -181,7 +178,6 @@ export default function Home() {
         <section className="py-16 md:py-24 border-t">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12 max-w-md mx-auto">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-2">Features</p>
               <h2 className="text-xl md:text-3xl font-bold tracking-tight">Everything you need</h2>
               <p className="mt-2 text-muted-foreground text-sm">A complete platform for secure document management with built-in AI.</p>
             </div>
@@ -203,7 +199,6 @@ export default function Home() {
         <section className="py-16 md:py-24 border-t">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12 max-w-md mx-auto">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-2">How it works</p>
               <h2 className="text-xl md:text-3xl font-bold tracking-tight">Three steps to get started</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
@@ -213,8 +208,7 @@ export default function Home() {
                 { step: "03", title: "Analyze & collaborate", desc: "Run AI actions on your documents. Summarize, analyze, translate, and more. Invite your team.", icon: Sparkles },
               ].map((s) => (
                 <div key={s.step} className="border rounded-xl p-5 bg-card">
-                  <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-wider">Step {s.step}</span>
-                  <div className="flex items-center gap-2 mt-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2">
                     <s.icon className="h-4 w-4 text-muted-foreground" />
                     <h3 className="font-semibold text-sm">{s.title}</h3>
                   </div>
@@ -229,7 +223,6 @@ export default function Home() {
         <section className="py-16 md:py-24 border-t">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12 max-w-md mx-auto">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-2">Access Control</p>
               <h2 className="text-xl md:text-3xl font-bold tracking-tight">Role hierarchy</h2>
               <p className="mt-2 text-muted-foreground text-sm">Four tiers of access control for complete platform governance.</p>
             </div>
@@ -262,9 +255,8 @@ export default function Home() {
         {/* Request Super Admin Access */}
         <section className="py-16 md:py-24 border-t">
           <div className="container mx-auto px-4">
-            <div className="rounded-xl border bg-card/50 backdrop-blur p-8 md:p-12 max-w-2xl mx-auto relative overflow-hidden">
-              <div className="absolute inset-0 dot-bg opacity-20" />
-              <div className="relative z-10">
+            <div className="rounded-xl border bg-card p-8 md:p-12 max-w-2xl mx-auto">
+              <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-900 dark:bg-stone-100">
                     <ShieldCheck className="h-5 w-5 text-stone-100 dark:text-stone-900" />
@@ -322,9 +314,8 @@ export default function Home() {
         {/* CTA */}
         <section className="py-16 md:py-24 border-t">
           <div className="container mx-auto px-4">
-            <div className="rounded-xl border bg-card/50 backdrop-blur p-10 md:p-14 text-center max-w-xl mx-auto relative overflow-hidden">
-              <div className="absolute inset-0 dot-bg opacity-30" />
-              <div className="relative z-10">
+            <div className="rounded-xl border bg-card p-10 md:p-14 text-center max-w-xl mx-auto">
+              <div>
                 <h2 className="text-lg md:text-2xl font-bold tracking-tight">Ready to get started?</h2>
                 <p className="mt-2 text-muted-foreground text-sm max-w-sm mx-auto">Create your account, join an organization, and start managing documents with AI.</p>
                 <div className="flex gap-3 justify-center mt-6">

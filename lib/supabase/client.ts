@@ -1,11 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════
-   Supabase BROWSER client — cookie-bound SSR-compatible
-   ═══════════════════════════════════════════════════════════════
-   Safe to import from "use client" components. Uses only the
-   anon key; all reads/writes are subject to RLS, authenticated
-   via the cookie session set by proxy.ts + the login flow.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Supabase browser client (cookie-bound, SSR-compatible). Uses only the
+// anon key; reads/writes are subject to RLS via the cookie session.
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "./types";
 

@@ -1,11 +1,6 @@
 "use client"
 
-/* ═══════════════════════════════════════════════════════════════
-   Share dialog — manage visibility + explicit page_shares.
-   Phase 1 surfaces: Private / Org / Role / Restricted + member picks.
-   External invites + public_link tokens land later.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Share dialog — manage visibility + explicit page_shares.
 import { useEffect, useState } from "react"
 import {
   Dialog,
@@ -174,11 +169,7 @@ export function ShareDialog({
     if (!inviteEmail.trim()) return
     setInviting(true)
     try {
-      // Look up user by email via the existing users API (server-side).
-      // For simplicity we expect the caller UI knows the user_id. Since we
-      // don't have a user-search endpoint, we try a lookup against the
-      // profiles table via the pages shares endpoint indirectly by first
-      // fetching the user_id from a lightweight helper.
+      // Resolve email to a user_id via the by-email lookup endpoint.
       const lookup = await fetch(
         `/api/users/by-email?email=${encodeURIComponent(inviteEmail.trim())}`,
         { credentials: "include" }
@@ -209,7 +200,6 @@ export function ShareDialog({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Failed to share")
 
-      // Optimistic refresh.
       const refreshed = await fetch(`/api/pages/${pageId}/shares`, {
         credentials: "include",
       })

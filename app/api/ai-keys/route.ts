@@ -7,7 +7,7 @@ import { ZodError, z } from "zod";
 
 export const runtime = "nodejs";
 
-/* ─── GET: list the caller's API keys (metadata only, never the key) ── */
+// GET: list the caller's API keys (metadata only, never the key).
 export const GET = withAuth(async (authed) => {
   const supabase = await createServerClient();
   const { data, error } = await supabase
@@ -23,7 +23,7 @@ export const GET = withAuth(async (authed) => {
   return NextResponse.json({ keys: data ?? [] });
 });
 
-/* ─── POST: store a new encrypted API key owned by the caller ───── */
+// POST: store a new encrypted API key owned by the caller.
 export const POST = withAuth(async (authed, req: NextRequest) => {
   try {
     const raw = await req.json();
@@ -80,7 +80,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
   }
 });
 
-/* ─── DELETE: remove one of the caller's API keys ─────────────── */
+// DELETE: remove one of the caller's API keys.
 export const DELETE = withAuth(async (authed, req: NextRequest) => {
   const raw = req.nextUrl.searchParams.get("id");
   const parsed = z.string().uuid().safeParse(raw);

@@ -1,17 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════
-   GET /api/pages/[id]/public — anonymous read for public pages
-   ═══════════════════════════════════════════════════════════════
-   Returns the page only when its visibility is "public_link". No
-   auth cookie required. The response is intentionally trimmed to
-   what a viewer needs (no share list, no internal fields).
-
-   Security:
-   - Only `visibility = 'public_link'` pages are returned. Anything
-     else falls through to 404 to avoid leaking existence.
-   - Rate-limited by IP to discourage enumeration.
-   - Archived pages are not served publicly.
-   ═══════════════════════════════════════════════════════════════ */
-
+// GET /api/pages/[id]/public — anonymous read, only for visibility = 'public_link' pages. Everything else 404s to avoid leaking existence.
+// Rate-limited by IP; archived pages are never served.
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uuid } from "@/lib/schemas";
@@ -32,7 +20,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const ip = getClientIp(req);
+  const ip = getClientIp(req) ?? "unknown";
   const rl = await checkRateLimit("page-public-read", ip, 60, 60);
   if (rl) return rl;
 

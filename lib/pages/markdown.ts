@@ -1,15 +1,6 @@
-/* ═══════════════════════════════════════════════════════════════
-   BlockNote ↔ Markdown bridge (server-side, lightweight)
-   ═══════════════════════════════════════════════════════════════
-   BlockNote's own conversion APIs require a DOM, so we ship a
-   small lossy bridge that handles the common subset used in
-   Phase 1 (paragraph, heading 1-3, bullet/numbered list items,
-   quote, code, image). Round-trip fidelity isn't perfect — that's
-   why pages also store `markdown_cache` written from the client
-   when available; this server helper is the safety net used for
-   the import endpoint and as a backstop if the cache is stale.
-   ═══════════════════════════════════════════════════════════════ */
-
+// Lightweight server-side BlockNote ↔ Markdown bridge. Lossy, covers the
+// common subset (paragraph, heading 1-3, lists, quote, code, image); the
+// client-written `markdown_cache` is preferred when available.
 import "server-only";
 
 interface InlineRun {
@@ -26,7 +17,6 @@ interface BNBlock {
   children?: BNBlock[];
 }
 
-/* ─── blocks → markdown ─────────────────────────────────────── */
 
 function inlineToMarkdown(content: BNBlock["content"]): string {
   if (!content) return "";
@@ -131,19 +121,10 @@ export function blocksToMarkdown(blocks: unknown[]): string {
     .trim();
 }
 
-/* ─── markdown → blocks ─────────────────────────────────────── */
+// markdown → blocks
 
-/**
- * Parse a single line (or span) of markdown inline syntax into
- * BlockNote's inline content runs. Handles:
- *   • **bold** and __bold__
- *   • *italic* and _italic_
- *   • ~~strike~~
- *   • `inline code`
- *   • [label](url)
- * Order matters — code is captured first so other marks inside a
- * code span are treated as literal characters.
- */
+// Parse inline markdown (bold, italic, strike, code, links) into BlockNote runs.
+// Code is captured first so marks inside a code span stay literal.
 function parseInline(text: string): InlineRun[] {
   if (!text) return [];
   const runs: InlineRun[] = [];
@@ -285,19 +266,8 @@ function plainText(text: string): InlineRun[] {
 }
 void plainText;
 
-/**
- * Markdown → BlockNote blocks. Supports:
- *   • headings h1..h6
- *   • bullet / numbered / task lists (nested via indent of 2 spaces)
- *   • block quotes
- *   • fenced code blocks with language hint
- *   • block-level images
- *   • horizontal rules → divider block
- *   • GitHub-style tables (stored as a paragraph with the raw table
- *     text for now — BlockNote's table block has a different data
- *     shape and writing a fully faithful converter is out of scope).
- *   • inline formatting via `parseInline` (see above)
- */
+// Markdown → BlockNote blocks: headings, lists (incl. tasks), quotes, fenced
+// code, images, horizontal rules, and tables (kept as raw text for now).
 export function markdownToBlocks(markdown: string): BNBlock[] {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const out: BNBlock[] = [];

@@ -11,34 +11,23 @@ export const runtime = "nodejs";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const PARSEABLE_EXTENSIONS = ["docx", "doc", "txt", "md", "html", "json", "rtf", "odt", "csv"];
 
-/**
- * Allowed document MIME types (from magic-byte sniffing).
- * Plain-text formats (txt, md, csv, json) are detected via extension because
- * they do not have reliable magic bytes.
- */
+// Allowed MIME types from magic-byte sniffing. Plain-text formats are detected via extension since they lack reliable magic bytes.
+// Restricted to formats parseDocument actually handles.
 const ALLOWED_DETECTED_MIMES = new Set([
   "application/pdf",
   "application/msword",
+  // file-type reports legacy .doc as CFB (Compound File Binary).
+  "application/x-cfb",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.oasis.opendocument.text",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/zip",
   "application/rtf",
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
 ]);
 
 const PLAINTEXT_EXTENSIONS = new Set(["txt", "md", "csv", "json", "html"]);
 
 export const POST = withAuth(async (authed, req: NextRequest) => {
   try {
-    // Must belong to an org before uploading anything. Pending /
-    // rejected accounts are already blocked in requireUser().
+    // Must belong to an org before uploading anything. Pending / rejected accounts are already blocked in requireUser().
     if (!authed.profile.org_id) {
       return NextResponse.json(
         { error: "You must belong to an organization to upload files" },
@@ -67,8 +56,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = (file.name.split(".").pop() || "bin").toLowerCase();
 
-    // Magic-byte sniff for non-plaintext types. Record the server-verified
-    // MIME so we never trust `file.type` from the client.
+    // Magic-byte sniff for non-plaintext types. Record the server-verified MIME so we never trust `file.type` from the client.
     let trustedContentType: string;
     if (PLAINTEXT_EXTENSIONS.has(ext)) {
       const plaintextMime: Record<string, string> = {
@@ -118,9 +106,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
       .replace(/_{2,}/g, "_");
     const storagePath = `${authed.id}/${timestamp}_${safeName}`;
 
-    // The `documents` bucket is service-role-only at the storage layer.
-    // We've already authorized the caller above, so use the admin client
-    // just for the upload. DB writes below stay on the user-scoped client.
+    // Storage bucket is service-role-only; DB writes below stay on the user client.
     const admin = createAdminClient();
     const { error: uploadError } = await admin.storage
       .from("documents")
@@ -151,7 +137,7 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
           console.error("[upload] parse error (non-fatal):", parseErr);
         }
       }
-      await (supabase.from("documents") as any).update(updateData).eq("id", documentId);
+      await supabase.from("documents").update(updateData).eq("id", documentId);
     }
 
     return NextResponse.json({

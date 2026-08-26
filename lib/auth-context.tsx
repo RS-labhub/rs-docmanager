@@ -13,8 +13,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, UserRole } from "@/lib/supabase/types";
 
-/* ─── Context types ─────────────────────────────────────────── */
-
 interface AuthContextType {
   user: Profile | null;
   isLoading: boolean;
@@ -38,8 +36,7 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/* ─── Public routes (client-side UX; server enforces via proxy) ─ */
-
+// Public routes for client-side UX; the server enforces access via proxy.ts.
 const PUBLIC_ROUTES = [
   "/",
   "/login",
@@ -58,8 +55,6 @@ function isPublicRoute(pathname: string): boolean {
   return false;
 }
 
-/* ─── Provider ──────────────────────────────────────────────── */
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
 
-  /* ─── Load profile for the current session ─── */
+  // Loads the profile for the current session.
   const loadProfile = useCallback(
     async (userId: string): Promise<Profile | null> => {
       const { data, error } = await supabase
@@ -81,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [supabase]
   );
 
-  /** Returns Profile, null (signed out / disabled), or undefined (transient error — keep current state). */
+  // Returns Profile, null (signed out/disabled), or undefined (transient error, keep state).
   const fetchCurrentProfile = useCallback(async (): Promise<
     Profile | null | undefined
   > => {
@@ -109,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result);
   }, [fetchCurrentProfile]);
 
-  /* ─── Initial load + subscribe to auth state changes ─── */
+  // Initial load + subscribe to auth state changes.
   useEffect(() => {
     let mounted = true;
     // Hard ceiling so the UI never deadlocks on a hung Supabase call.
@@ -166,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase, loadProfile]);
 
-  /* ─── Client-side route guidance (server enforces via proxy) ─── */
+  // Client-side route guidance; the server still enforces via proxy.ts.
   useEffect(() => {
     if (isLoading) return;
     if (
@@ -182,7 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isLoading, pathname, router]);
 
-  /* ─── Login ───────────────────────────────────────────────── */
   const login = useCallback(
     async (
       email: string,
@@ -232,7 +226,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [supabase, loadProfile, router]
   );
 
-  /* ─── Register ────────────────────────────────────────────── */
   const register = useCallback(
     async (
       regData: RegisterData
@@ -274,7 +267,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [supabase, refresh, router]
   );
 
-  /* ─── Logout ──────────────────────────────────────────────── */
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);

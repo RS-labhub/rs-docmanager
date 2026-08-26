@@ -1,11 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════
-   POST   /api/pages/[id]/cover — upload a cover image
-   DELETE /api/pages/[id]/cover — clear the cover
-   ═══════════════════════════════════════════════════════════════
-   Cover lives in the private `page-covers` bucket. We return a
-   long-lived signed URL the client can stash on the page row.
-   ═══════════════════════════════════════════════════════════════ */
-
+// POST/DELETE /api/pages/[id]/cover — upload or clear a cover image.
+// Stored in the private "page-covers" bucket; returns a long-lived signed URL.
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth, getClientIp, type AuthedUser } from "@/lib/auth/require";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -74,9 +68,8 @@ export const POST = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => 
     },
     share,
   });
-  // Cover changes follow the same rule as other visibility-affecting
-  // edits — full_access only.
-  if (!permissionAtLeast(perm, "full_access")) {
+  // Covers are content — any editor can change them (matches the UI).
+  if (!permissionAtLeast(perm, "edit")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -104,10 +97,10 @@ export const POST = withAuth(async (authed, req: NextRequest, ctx: RouteCtx) => 
     );
   }
 
-  // Path: <org>/<page>/<timestamp>.<ext>  — keeps org isolation in
-  // the bucket itself and makes orphan cleanup trivial.
+  // Path: <org|personal/owner>/<page>/<timestamp>.<ext> keeps isolation and eases cleanup.
   const ext = detected.ext;
-  const path = `${page.org_id}/${page.id}/${Date.now()}.${ext}`;
+  const scope = page.org_id ?? `personal-${page.owner_id}`;
+  const path = `${scope}/${page.id}/${Date.now()}.${ext}`;
 
   const { error: uploadErr } = await admin.storage
     .from("page-covers")
@@ -193,7 +186,7 @@ export const DELETE = withAuth(
       },
       share,
     });
-    if (!permissionAtLeast(perm, "full_access")) {
+    if (!permissionAtLeast(perm, "edit")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -32,11 +32,7 @@ export default function ResetPasswordPage() {
 
   const strength = useMemo(() => computeStrength(password), [password])
 
-  // Single dedicated in-page Supabase client. We deliberately use
-  // `@supabase/supabase-js` (NOT the cookie-bound ssr client) so the
-  // recovery session stays scoped to this page and doesn't race with
-  // the rest of the app's cookie-based auth. It lives only in memory;
-  // we sign out explicitly after success.
+  // In-memory Supabase client scoped to this page's recovery session.
   const supabaseRef = useRef<SupabaseClient | null>(null)
   if (supabaseRef.current === null && typeof window !== "undefined") {
     supabaseRef.current = createSupabaseJsClient(
@@ -60,9 +56,7 @@ export default function ResetPasswordPage() {
     async function init() {
       if (typeof window === "undefined" || !supabase) return
 
-      // Supabase (implicit flow) delivers the recovery session as
-      // tokens in the URL hash fragment. Parse them and seed the
-      // in-page client's session manually.
+      // Recovery tokens arrive in the URL hash fragment.
       const hash = window.location.hash.replace(/^#/, "")
       if (hash) {
         const params = new URLSearchParams(hash)
@@ -87,7 +81,7 @@ export default function ResetPasswordPage() {
             access_token: accessToken,
             refresh_token: refreshToken,
           })
-          // Strip tokens out of the address bar.
+          // Strip tokens from the address bar.
           window.history.replaceState(
             {},
             document.title,
@@ -141,7 +135,6 @@ export default function ResetPasswordPage() {
         password,
       })
       if (updateError) throw updateError
-      // Tear down the in-memory recovery session before leaving.
       await supabase.auth.signOut().catch(() => undefined)
       setSuccess(true)
       setTimeout(() => router.push("/login"), 1500)

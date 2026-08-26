@@ -39,30 +39,20 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
   
   const manualHeightRef = useRef<string>("")
 
-  // Auto-resize Textarea when in enlarged mode
+  // Auto-resize textarea when enlarged
   React.useEffect(() => {
     const ta = textareaRef.current
     if (!ta) return
     if (isEnlarged) {
-      if (ta.style.height && ta.style.height !== "auto" && !ta.style.height.includes("px") && manualHeightRef.current === "") {
-        // Just in case it's something else, but resize handle adds px based height directly
-      }
-      
       ta.style.height = "auto"
       ta.style.height = `${ta.scrollHeight}px`
     }
   }, [value, isEnlarged, mode])
 
-  // Reset height only when turning off enlarged mode so we don't destroy user's manual resize while typing
+  // Reset height only when leaving enlarged mode
   React.useEffect(() => {
     const ta = textareaRef.current
     if (!ta) return
-    if (isEnlarged) {
-      // Capture height before it's overwritten by the effect above
-      // Wait, if the effect above runs on the same frame, we must save it first.
-      // We can use a mousedown/mouseup tracker, or just read it before setting.
-      // But actually, just letting it reset to empty (which defaults to min-height: 350px) is standard.
-    }
     if (!isEnlarged) {
       ta.style.height = ""
     }
@@ -70,7 +60,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
   React.useEffect(() => {
     const val = value || ""
-    // Avoid saving if the exact value is already our current state (e.g. from an undo/redo action)
+    // Skip if value already matches current history entry (e.g. undo/redo)
     if (val === history[historyIndex]) return
 
     const timer = setTimeout(() => {

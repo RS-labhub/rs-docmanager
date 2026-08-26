@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseDocument } from "@/lib/parsers";
 import { withAuth } from "@/lib/auth/require";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -62,7 +63,9 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
     }
     const storagePath = parts[parts.length - 1];
 
-    const { data: fileData, error: downloadError } = await supabase.storage
+    // The documents bucket is service-role-only; ACL was checked above.
+    const admin = createAdminClient();
+    const { data: fileData, error: downloadError } = await admin.storage
       .from("documents")
       .download(storagePath);
 
@@ -86,7 +89,8 @@ export const POST = withAuth(async (authed, req: NextRequest) => {
       );
     }
 
-    const { error: updateError } = await (supabase.from("documents") as any)
+    const { error: updateError } = await supabase
+      .from("documents")
       .update({ content: result.content })
       .eq("id", documentId);
 

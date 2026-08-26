@@ -1,31 +1,14 @@
--- ══════════════════════════════════════════════════════════════
---  AI Document Management System — Supabase Schema (Consolidated)
---  ------------------------------------------------------------
---  This is the single-file, fresh-install schema. It represents
---  the end state after migration 001_real_rls.sql has been applied.
---
---  If you are provisioning a brand new Supabase project, run ONLY
---  this file. Do NOT also run 001_real_rls.sql — it is kept for
---  projects that were created from an older version of this file.
---
---  Key differences vs. the pre-migration schema:
---    • Legacy `credentials` table removed (auth lives in auth.users)
---    • All RLS policies are role-scoped (`TO service_role` /
---      `TO authenticated`) — no more `USING (true)` free-for-alls
---    • SECURITY DEFINER helper functions to avoid recursive RLS
---      checks against `profiles`
--- ══════════════════════════════════════════════════════════════
+-- AI Document Management System — Supabase schema (consolidated, fresh-install).
+-- Run ONLY this file on a new project; do not also run 001_real_rls.sql.
+-- All RLS policies are role-scoped (no USING (true) free-for-alls), with
+-- SECURITY DEFINER helpers to avoid recursive RLS checks on `profiles`.
 
--- ══════════════════════════════════════════════════════════════
 -- 1. Enums
--- ══════════════════════════════════════════════════════════════
 
 CREATE TYPE user_role        AS ENUM ('god', 'super_admin', 'admin', 'user');
 CREATE TYPE approval_status  AS ENUM ('pending', 'approved', 'rejected');
 
--- ══════════════════════════════════════════════════════════════
 -- 2. Tables
--- ══════════════════════════════════════════════════════════════
 
 -- 2.1 Organizations
 CREATE TABLE organizations (
@@ -162,9 +145,7 @@ CREATE TABLE audit_logs (
   created_at    TIMESTAMPTZ DEFAULT now()
 );
 
--- ══════════════════════════════════════════════════════════════
 -- 3. Indexes
--- ══════════════════════════════════════════════════════════════
 
 CREATE INDEX idx_profiles_org            ON profiles(org_id);
 CREATE INDEX idx_profiles_role           ON profiles(role);
@@ -184,9 +165,7 @@ CREATE INDEX idx_ai_actions_status       ON ai_actions(status);
 CREATE INDEX idx_audit_logs_user         ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_org          ON audit_logs(org_id);
 
--- ══════════════════════════════════════════════════════════════
 -- 4. Auto-update updated_at triggers
--- ══════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -205,11 +184,8 @@ CREATE TRIGGER trg_ai_api_keys_updated     BEFORE UPDATE ON ai_api_keys        F
 CREATE TRIGGER trg_ai_agents_updated       BEFORE UPDATE ON ai_agents          FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_ai_actions_updated      BEFORE UPDATE ON ai_actions         FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- ══════════════════════════════════════════════════════════════
--- 5. SECURITY DEFINER helpers for RLS
---    These let policies check role/org without recursing into
---    `profiles` policies. They only expose info about auth.uid().
--- ══════════════════════════════════════════════════════════════
+-- 5. SECURITY DEFINER helpers for RLS — let policies check role/org
+-- without recursing into `profiles` policies.
 
 CREATE OR REPLACE FUNCTION public.current_profile()
 RETURNS TABLE (id UUID, role user_role, org_id UUID, is_active BOOLEAN, approval_status approval_status)
@@ -264,9 +240,7 @@ $$;
 REVOKE ALL ON FUNCTION public.current_org_id() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.current_org_id() TO authenticated;
 
--- ══════════════════════════════════════════════════════════════
 -- 6. Row Level Security
--- ══════════════════════════════════════════════════════════════
 
 ALTER TABLE organizations      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles           ENABLE ROW LEVEL SECURITY;
@@ -278,7 +252,7 @@ ALTER TABLE ai_agents          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_actions         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs         ENABLE ROW LEVEL SECURITY;
 
--- ── service_role passthrough (server-side admin client) ──────
+-- service_role passthrough (server-side admin client)
 CREATE POLICY "service_role_full_access" ON organizations
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_role_full_access" ON profiles
@@ -298,7 +272,7 @@ CREATE POLICY "service_role_full_access" ON ai_actions
 CREATE POLICY "service_role_full_access" ON audit_logs
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- ── organizations ────────────────────────────────────────────
+-- organizations
 CREATE POLICY "org_read_own_or_god" ON organizations
   FOR SELECT TO authenticated
   USING (
@@ -318,7 +292,7 @@ CREATE POLICY "org_delete_privileged" ON organizations
   );
 -- Create/update go through the server/service role.
 
--- ── profiles ─────────────────────────────────────────────────
+-- profiles
 CREATE POLICY "profile_read_self" ON profiles
   FOR SELECT TO authenticated
   USING (id = auth.uid());
@@ -346,7 +320,7 @@ CREATE POLICY "profile_update_self" ON profiles
   USING (id = auth.uid())
   WITH CHECK (id = auth.uid());
 
--- ── documents ────────────────────────────────────────────────
+-- documents
 CREATE POLICY "doc_read_scoped" ON documents
   FOR SELECT TO authenticated
   USING (
@@ -399,7 +373,7 @@ CREATE POLICY "doc_delete_owner_or_admin" ON documents
     )
   );
 
--- ── document_comments ────────────────────────────────────────
+-- document_comments
 CREATE POLICY "comment_read_if_can_read_doc" ON document_comments
   FOR SELECT TO authenticated
   USING (
@@ -456,10 +430,10 @@ CREATE POLICY "comment_delete_self_or_admin" ON document_comments
     )
   );
 
--- ── document_passwords (no authenticated access; app uses service role) ──
+-- document_passwords: no authenticated access; app uses service role.
 -- Intentionally no policies for `authenticated`.
 
--- ── ai_api_keys (owner-only) ─────────────────────────────────
+-- ai_api_keys (owner-only)
 CREATE POLICY "aikeys_read_own_metadata" ON ai_api_keys
   FOR SELECT TO authenticated
   USING (user_id = auth.uid());
@@ -477,7 +451,7 @@ CREATE POLICY "aikeys_delete_own" ON ai_api_keys
   FOR DELETE TO authenticated
   USING (user_id = auth.uid());
 
--- ── ai_agents ────────────────────────────────────────────────
+-- ai_agents
 CREATE POLICY "agent_read_same_org" ON ai_agents
   FOR SELECT TO authenticated
   USING (
@@ -502,7 +476,7 @@ CREATE POLICY "agent_manage_admin" ON ai_agents
     )
   );
 
--- ── ai_actions ───────────────────────────────────────────────
+-- ai_actions
 CREATE POLICY "ai_action_read_same_org" ON ai_actions
   FOR SELECT TO authenticated
   USING (
@@ -545,7 +519,7 @@ CREATE POLICY "ai_action_delete_self_or_admin" ON ai_actions
     )
   );
 
--- ── audit_logs ──────────────────────────────────────────────
+-- audit_logs
 -- Read: admin+ only (god or admin of same org).
 CREATE POLICY "audit_read_admin_own_org" ON audit_logs
   FOR SELECT TO authenticated
@@ -562,9 +536,7 @@ CREATE POLICY "audit_insert_self" ON audit_logs
   FOR INSERT TO authenticated
   WITH CHECK (user_id = auth.uid());
 
--- ══════════════════════════════════════════════════════════════
 -- 7. Storage buckets
--- ══════════════════════════════════════════════════════════════
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
@@ -597,7 +569,7 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- ── storage.objects policies ─────────────────────────────────
+-- storage.objects policies 
 -- documents: private; all access goes through the app (service role).
 -- The /api/document-file route enforces access checks.
 CREATE POLICY "docs_service_only" ON storage.objects
@@ -638,14 +610,9 @@ CREATE POLICY "avatar_delete_own_prefix" ON storage.objects
 CREATE POLICY "storage_service_role" ON storage.objects
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- ══════════════════════════════════════════════════════════════
--- 8. Notion-style PAGES
---    A separate, content-first surface from `documents`. Each page
---    has a JSONB block tree (BlockNote native format) plus an
---    optional cached markdown export for AI/search/round-tripping.
---    Visibility is controlled by `visibility` (default 'org') and
---    explicit per-user shares in `page_shares`.
--- ══════════════════════════════════════════════════════════════
+-- 8. Notion-style pages — a content-first surface separate from `documents`.
+-- Each page has a JSONB block tree (BlockNote) plus a cached markdown export.
+-- Visibility defaults to 'org', with per-user overrides in `page_shares`.
 
 CREATE TYPE page_visibility AS ENUM (
   'private',     -- only the owner (and god/super-admin of org for safety)
@@ -662,12 +629,9 @@ CREATE TYPE page_permission AS ENUM (
   'full_access'  -- can manage shares + delete
 );
 
--- 8.1 pages
---     org_id is nullable to support "personal" pages for users who
---     don't belong to an organization. Personal pages are always
---     private by construction — only the owner (and god) can see
---     them; sharing/org/role visibility options are reserved for
---     org-scoped pages.
+-- 8.1 pages. org_id is nullable for "personal" pages (users with no org);
+-- those are always private/public_link only — org/role/restricted visibility
+-- requires an org.
 CREATE TABLE pages (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id          UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -693,9 +657,7 @@ CREATE TABLE pages (
   CHECK (org_id IS NOT NULL OR visibility IN ('private', 'public_link'))
 );
 
--- 8.2 page_shares — explicit per-user grants
---     Used by visibility = 'restricted', and as overrides for
---     'org' / 'role' (a share with a higher permission wins).
+-- 8.2 page_shares — explicit per-user grants for 'restricted' visibility, and overrides for 'org'/'role' (a share with higher permission wins).
 CREATE TABLE page_shares (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page_id     UUID NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -707,10 +669,7 @@ CREATE TABLE page_shares (
   UNIQUE (page_id, user_id)
 );
 
--- 8.3 page_invites — pending invites (registered users not yet sharing the page,
---     and external email invites for non-members; consumed when the invitee
---     visits the page link or signs up). Phase 1 stores them; the consumption
---     flow lands in a follow-up.
+-- 8.3 page_invites — pending invites (existing users or external emails), consumed when the invitee visits the page link or signs up.
 CREATE TABLE page_invites (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page_id         UUID NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -729,13 +688,8 @@ CREATE TABLE page_invites (
 -- citext for case-insensitive email matching on invites.
 CREATE EXTENSION IF NOT EXISTS citext;
 
--- ── idempotent constraint fix ────────────────────────────────
--- The original pages table had a CHECK that only allowed 'private'
--- for personal pages (org_id IS NULL). We want to allow 'public_link'
--- too so users can share a personal page by link. This block drops
--- any pre-existing "org_id + visibility" CHECK regardless of its
--- auto-generated name and re-adds the relaxed version. Safe on
--- fresh installs (finds nothing to drop).
+-- Relaxes the personal-page visibility CHECK to also allow 'public_link'.
+-- Drops any pre-existing org_id+visibility CHECK (by content, not name) and re-adds it. Safe on fresh installs (nothing to drop).
 DO $personal_vis_fix$
 DECLARE
   r record;
@@ -766,7 +720,7 @@ BEGIN
     CHECK (org_id IS NOT NULL OR visibility IN ('private', 'public_link'));
 END $personal_vis_fix$;
 
--- ── indexes ──────────────────────────────────────────────────
+-- indexes
 CREATE INDEX idx_pages_org             ON pages(org_id);
 CREATE INDEX idx_pages_owner           ON pages(owner_id);
 CREATE INDEX idx_pages_parent          ON pages(parent_id);
@@ -778,17 +732,11 @@ CREATE INDEX idx_page_invites_page     ON page_invites(page_id);
 CREATE INDEX idx_page_invites_email    ON page_invites(invitee_email);
 CREATE INDEX idx_page_invites_userid   ON page_invites(invitee_user_id);
 
--- ── updated_at triggers ──────────────────────────────────────
+-- updated_at triggers
 CREATE TRIGGER trg_pages_updated         BEFORE UPDATE ON pages        FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_page_shares_updated   BEFORE UPDATE ON page_shares  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- ══════════════════════════════════════════════════════════════
--- 9. SECURITY DEFINER helper for page access resolution
---    Centralizes the "can this user see/edit this page" rule so
---    the RLS policies below are short and readable. Returns the
---    highest-resolved permission level ('full_access' > 'edit' >
---    'comment' > 'view') or NULL if no access.
--- ══════════════════════════════════════════════════════════════
+-- 9. SECURITY DEFINER helper resolving page access, so RLS policies below stay short. Returns the highest permission level or NULL if no access.
 
 CREATE OR REPLACE FUNCTION public.page_permission_for(p pages)
 RETURNS page_permission
@@ -834,16 +782,12 @@ BEGIN
     RETURN share_perm;
   END IF;
 
-  -- Personal pages (org_id IS NULL): only the owner and god
-  -- (already handled above) can access them. Shares + admin
-  -- elevation do not apply — the page lives outside any org
-  -- governance.
+  -- Personal pages (no org): only owner/god (handled above) can access.
   IF p.org_id IS NULL THEN
     RETURN NULL;
   END IF;
 
-  -- super_admin / admin within the page's org: implicit full_access
-  -- (so super-admins can never be locked out of org content).
+  -- super_admin / admin within the page's org get implicit full_access.
   IF p.org_id = caller_org AND caller_role IN ('super_admin', 'admin') THEN
     RETURN 'full_access'::page_permission;
   END IF;
@@ -877,8 +821,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- public_link: handled out-of-band by signed-token API routes,
-  -- not by direct DB reads from authenticated users.
+  -- public_link: handled out-of-band by signed-token API routes.
   RETURN NULL;
 END;
 $$;
@@ -886,9 +829,7 @@ $$;
 REVOKE ALL ON FUNCTION public.page_permission_for(pages) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.page_permission_for(pages) TO authenticated;
 
--- ══════════════════════════════════════════════════════════════
 -- 10. RLS for pages / page_shares / page_invites
--- ══════════════════════════════════════════════════════════════
 
 ALTER TABLE pages         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE page_shares   ENABLE ROW LEVEL SECURITY;
@@ -902,7 +843,7 @@ CREATE POLICY "service_role_full_access" ON page_shares
 CREATE POLICY "service_role_full_access" ON page_invites
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- ── pages policies ───────────────────────────────────────────
+-- pages policies
 CREATE POLICY "page_read_resolved" ON pages
   FOR SELECT TO authenticated
   USING (public.page_permission_for(pages.*) IS NOT NULL);
@@ -935,7 +876,7 @@ CREATE POLICY "page_delete_if_full_access" ON pages
     public.page_permission_for(pages.*) = 'full_access'::page_permission
   );
 
--- ── page_shares policies ─────────────────────────────────────
+-- page_shares policies
 -- Read: a user can read shares for pages they can see.
 CREATE POLICY "page_share_read_if_can_read_page" ON page_shares
   FOR SELECT TO authenticated
@@ -966,7 +907,7 @@ CREATE POLICY "page_share_manage_if_full_access" ON page_shares
     )
   );
 
--- ── page_invites policies ────────────────────────────────────
+-- page_invites policies
 -- Read: invitee themselves (matched by email), or page managers.
 CREATE POLICY "page_invite_read_relevant" ON page_invites
   FOR SELECT TO authenticated
@@ -996,9 +937,7 @@ CREATE POLICY "page_invite_manage_if_full_access" ON page_invites
     )
   );
 
--- ══════════════════════════════════════════════════════════════
 -- 11. Storage bucket: page-covers (private; signed URLs only)
--- ══════════════════════════════════════════════════════════════
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
@@ -1010,21 +949,9 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- All access is gated through the /api/pages/[id]/cover route
--- (which itself enforces page_permission_for). Direct authenticated
--- access is denied; only service_role policy applies.
+-- All access is gated through /api/pages/[id]/cover; only service_role applies here.
 CREATE POLICY "page_covers_service_only" ON storage.objects
   FOR ALL TO service_role
   USING (bucket_id = 'page-covers')
   WITH CHECK (bucket_id = 'page-covers');
 
--- ══════════════════════════════════════════════════════════════
---  Post-install sanity check
---    SELECT relname, relrowsecurity FROM pg_class
---    WHERE relname IN (
---      'organizations','profiles','documents','document_comments',
---      'document_passwords','ai_api_keys','ai_agents','ai_actions',
---      'audit_logs','pages','page_shares','page_invites'
---    );
---  All should have relrowsecurity = true.
--- ══════════════════════════════════════════════════════════════

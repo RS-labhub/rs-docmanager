@@ -128,7 +128,6 @@ export default function Home() {
           <div className="container mx-auto px-4 flex flex-col items-center text-center max-w-4xl relative z-10">
             <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/50 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground mb-6 animate-fade-in dark:border-white/15 dark:bg-white/5 dark:text-white/80">
               <span className="relative flex h-2 w-2 shrink-0">
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
               </span>
               Rohan Sharma presents
             </div>

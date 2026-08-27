@@ -15,7 +15,7 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import {
-  Search, BookOpen, ChevronRight, FileText, Loader2, X,
+  Search, BookOpen, ChevronRight, FileText, X,
   ArrowUp, Hash, ExternalLink, Menu, List, Check, ListTree,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,15 +49,20 @@ function normalizeMarkdownTables(src: string): string {
 }
 
 interface DocsViewProps {
+  // Docs are read on the server and passed in, so the first paint already has content.
+  docs: DocFile[];
   // Slug from the URL (e.g. /docs/<slug>). When null, renders the first doc.
   initialSlug?: string | null;
 }
 
-export default function DocsView({ initialSlug = null }: DocsViewProps) {
+function resolveSlug(docs: DocFile[], initialSlug: string | null) {
+  if (initialSlug && docs.some(doc => doc.slug === initialSlug)) return initialSlug;
+  return docs[0]?.slug ?? "";
+}
+
+export default function DocsView({ docs, initialSlug = null }: DocsViewProps) {
   const router = useRouter();
-  const [docs, setDocs] = useState<DocFile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeSlug, setActiveSlug] = useState("");
+  const [activeSlug, setActiveSlug] = useState(() => resolveSlug(docs, initialSlug));
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showTop, setShowTop] = useState(false);
@@ -66,42 +71,20 @@ export default function DocsView({ initialSlug = null }: DocsViewProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Load docs. Active slug priority: initialSlug prop → legacy hash → first doc.
-  useEffect(() => {
-    fetch("/api/docs").then(r => r.json()).then(d => {
-      const all: DocFile[] = d.docs || [];
-      setDocs(all);
-      if (!all.length) return;
-
-      if (initialSlug && all.some(doc => doc.slug === initialSlug)) {
-        setActiveSlug(initialSlug);
-        return;
-      }
-
-      const hash = typeof window !== "undefined"
-        ? window.location.hash.replace(/^#/, "")
-        : "";
-      const hashMatch = hash && all.find(doc => doc.slug === hash);
-      if (hashMatch) {
-        // Migrate legacy /docs#<slug> deep links to /docs/<slug>.
-        setActiveSlug(hashMatch.slug);
-        router.replace(`/docs/${hashMatch.slug}`);
-        return;
-      }
-
-      setActiveSlug(all[0].slug);
-    }).catch(console.error).finally(() => setLoading(false));
-  }, [initialSlug, router]);
-
   // Keep activeSlug synced with the URL (back/forward, prop changes).
   useEffect(() => {
-    if (!docs.length) return;
-    if (initialSlug && docs.some(doc => doc.slug === initialSlug)) {
-      setActiveSlug(initialSlug);
-    } else if (!initialSlug) {
-      setActiveSlug(docs[0].slug);
-    }
+    setActiveSlug(resolveSlug(docs, initialSlug));
   }, [initialSlug, docs]);
+
+  // Migrate legacy /docs#<slug> deep links to /docs/<slug>.
+  useEffect(() => {
+    if (initialSlug) return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash && docs.some(doc => doc.slug === hash)) {
+      setActiveSlug(hash);
+      router.replace(`/docs/${hash}`);
+    }
+  }, [initialSlug, docs, router]);
 
   useEffect(() => {
     const fn = () => setShowTop(window.scrollY > 300);
@@ -195,17 +178,6 @@ export default function DocsView({ initialSlug = null }: DocsViewProps) {
   const nextDoc = activeIndex < docs.length - 1 ? docs[activeIndex + 1] : null;
 
   const tocHeadings = activeDoc?.headings.filter(h => h.level >= 2 && h.level <= 3) ?? [];
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading documentation...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">

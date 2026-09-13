@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 
-// Baseline security headers applied to every response. The proxy
-// sets these per-request too, but keeping them here provides a
-// fallback for routes that bypass the proxy (e.g. static assets).
+// Baseline security headers applied to every response. The proxy sets these per-request too, but keeping them here provides a fallback for routes that bypass the proxy (e.g. static assets).
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -15,9 +13,7 @@ const securityHeaders = [
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
   },
-  // A permissive CSP — Next.js + inline styles + Tailwind require
-  // 'unsafe-inline' and 'unsafe-eval' in dev. Tighten further in
-  // production once you've inventoried every external resource.
+  // A permissive CSP — Next.js + inline styles + Tailwind require 'unsafe-inline' and 'unsafe-eval' in dev. Tighten further in  production once you've inventoried every external resource.
   {
     key: "Content-Security-Policy",
     value: [
@@ -46,6 +42,16 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "rs-docmanager.vercel.app" }],
+        destination: "https://docmanager.rohansrma.me/:path*",
+        permanent: true,
       },
     ];
   },

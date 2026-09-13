@@ -38,7 +38,7 @@ Rohan Sharma's DocManager (R's DocManager) is a secure, AI-powered document mana
 - Organizations that require strict access control and data isolation
 - Developers who want AI-enhanced document workflows without vendor lock-in
 
-> R's DocManager is named after Radhika Sharma (future love) -- built with love by Rohan Sharma.
+> R's DocManager is named after Rohan Sharma.
 
 ## See also
 

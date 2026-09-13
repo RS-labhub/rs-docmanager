@@ -6,7 +6,7 @@ Frequently asked questions about R's DocManager.
 
 ### What is R's DocManager?
 
-An AI-powered document management platform with multi-organization support, role-based access control, document viewers, reviewer workflows, and encrypted API key storage. The full name is Radhika's DocManager.
+An AI-powered document management platform with multi-organization support, role-based access control, document viewers, reviewer workflows, and encrypted API key storage. The full name is Rohan's DocManager.
 
 ### Is it free?
 
@@ -14,7 +14,7 @@ The platform is open source. AI features require API keys from providers like Gr
 
 ### What does R stand for?
 
-Radhika. The application is named after Radhika Sharma, built by Rohan Sharma.
+Rohan. The application is named after Rohan Sharma, built by Rohan Sharma.
 
 ## Documents
 

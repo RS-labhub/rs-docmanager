@@ -20,6 +20,77 @@ import {
 } from "lucide-react"
 import { Analytics } from "@vercel/analytics/react"
 import { PrismaticBurst } from "@/components/ui/prismatic-burst"
+import { SITE_URL, SITE_NAME, ORGANIZATION_JSON_LD } from "@/lib/seo"
+
+const FAQS = [
+  {
+    q: "What is R's DocManager?",
+    a: "R's DocManager is an AI-powered document management system for teams and organizations. It combines secure document storage, a Notion-style block editor for rich pages, AI actions (summarize, analyze, translate, and more), and 4-tier role-based access control (RBAC) in one platform.",
+  },
+  {
+    q: "Is R's DocManager a good alternative to Notion?",
+    a: "Yes. R's DocManager offers a Notion-style block editor with autosave, emojis, cover images, and Markdown import/export — plus features Notion doesn't include out of the box, such as AES-256-GCM encrypted API keys, multi-organization data isolation, and a 4-tier RBAC system (User, Admin, Super Admin, God).",
+  },
+  {
+    q: "How is R's DocManager different from Google Docs or Confluence?",
+    a: "Unlike Google Docs or Confluence, R's DocManager lets you bring your own AI provider (Groq, OpenAI, or Anthropic) with encrypted key storage, gives every organization complete data isolation, and includes built-in AI actions like summarization, sentiment analysis, keyword extraction, and Q&A generation directly on your documents.",
+  },
+  {
+    q: "Does R's DocManager support multiple organizations and role-based access?",
+    a: "Yes. R's DocManager supports full multi-organization isolation and a 4-tier role hierarchy — User, Admin, Super Admin, and God — with granular permissions for documents and pages at every level.",
+  },
+  {
+    q: "Is R's DocManager free to use?",
+    a: "R's DocManager is open source and free to self-host. AI features work with your own API key from providers like Groq (free tier available), OpenAI, or Anthropic. Local tools such as word count, structure analysis, and text preview require no API key at all.",
+  },
+  {
+    q: "What file formats does R's DocManager support?",
+    a: "R's DocManager supports PDF, DOCX, DOC, TXT, CSV, Markdown, HTML, JSON, XLSX, PPTX, RTF, and ODT uploads, with automatic text extraction for most formats and a built-in Markdown editor for writing rich documents from scratch.",
+  },
+  {
+    q: "Can I share documents and pages publicly?",
+    a: "Yes. Any page can be published as a public link (e.g. docmanager.rohansrma.me/p/<id>) that's viewable without sign-in, and revocable at any time.",
+  },
+]
+
+const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+}
+
+const SOFTWARE_APP_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: SITE_NAME,
+  applicationCategory: "BusinessApplication",
+  applicationSubCategory: "Document Management System",
+  operatingSystem: "Web",
+  url: SITE_URL,
+  description:
+    "AI-powered document management system with encrypted API keys, multi-organization support, 4-tier RBAC, and Notion-style collaborative pages. A modern alternative to Notion, Google Docs, and Confluence.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+    category: "Free / Open Source",
+  },
+  featureList: [
+    "AI-powered document actions (summarize, analyze, translate, extract keywords, Q&A)",
+    "Notion-style block editor with autosave and public sharing",
+    "4-tier role-based access control (User, Admin, Super Admin, God)",
+    "Multi-organization data isolation",
+    "AES-256-GCM encrypted API key storage",
+    "Bring your own AI provider (Groq, OpenAI, Anthropic)",
+    "Document password protection",
+    "Reviewer workflows and document lifecycle management",
+  ],
+  publisher: ORGANIZATION_JSON_LD,
+}
 
 const FEATURES = [
   {
@@ -101,6 +172,14 @@ const HIGHLIGHTS = [
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_APP_JSON_LD) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
       <div className="relative">
         {/* Hero */}
         <section className="relative py-20 md:py-32 lg:py-40 overflow-hidden dark:bg-[#05050a]">
@@ -133,17 +212,21 @@ export default function Home() {
             </div>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[1.05] animate-fade-in">
-              <span className="bg-gradient-to-br from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent dark:from-white dark:via-white/90 dark:to-white/70">
+              <span className="sr-only">
+                R&apos;s DocManager — AI Document Management System, a Notion Alternative
+              </span>
+              <span aria-hidden="true" className="bg-gradient-to-br from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent dark:from-white dark:via-white/90 dark:to-white/70">
                 Intelligent documents.
               </span>
-              <br />
-              <span className="bg-gradient-to-br from-foreground/80 to-foreground/50 bg-clip-text text-transparent dark:from-white/80 dark:to-white/40">
+              <br aria-hidden="true" />
+              <span aria-hidden="true" className="bg-gradient-to-br from-foreground/80 to-foreground/50 bg-clip-text text-transparent dark:from-white/80 dark:to-white/40">
                 Secure by design.
               </span>
             </h1>
 
             <p className="mt-5 text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed animate-fade-in-up dark:text-white/60">
-              AI-powered document management with encrypted API keys, multi-organization support, and fine-grained access control. Built for teams that take security seriously.
+              R&apos;s DocManager is an AI-powered <strong>document management system</strong> and{" "}
+              <strong>Notion alternative</strong> — encrypted API keys, multi-organization support, and fine-grained access control. Built for teams that take security seriously.
             </p>
 
             <div className="flex gap-3 mt-8 animate-fade-in-up">
@@ -306,6 +389,23 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+        
+        <section className="py-16 md:py-24 border-t">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12 max-w-md mx-auto">
+              <h2 className="text-xl md:text-3xl font-bold tracking-tight">Frequently asked questions</h2>
+              <p className="mt-2 text-muted-foreground text-sm">Everything people ask when comparing document management systems.</p>
+            </div>
+            <div className="max-w-2xl mx-auto divide-y rounded-xl border bg-card">
+              {FAQS.map((f) => (
+                <div key={f.q} className="p-5 md:p-6">
+                  <h3 className="font-semibold text-sm mb-1.5">{f.q}</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>

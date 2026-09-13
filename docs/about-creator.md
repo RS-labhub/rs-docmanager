@@ -6,9 +6,7 @@ R's DocManager was built by **Rohan Sharma**, a passionate developer who believe
 
 ## The story behind the name
 
-R's DocManager is named after **Radhika Sharma** (future love), a special person whose memory inspired this project. The R in R's DocManager stands for Radhika, and the application was built as a tribute to her lasting impact. (it's an imaginary memory)
-
-> Built by Rohan Sharma, in hope of love.
+R's DocManager is named after **Rohan Sharma**.
 
 ## What makes this project special
 
